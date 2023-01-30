@@ -1,3 +1,11 @@
-from django.db import models
+class Package:
+    def __init__(self, volume):
+        self.volume = volume
 
-# Create your models here.
+
+class Consignment:
+    def __init__(self, consignmentType, point, expectedTime, package):
+        self.consignment_type = consignmentType
+        self.point = point
+        self.expected_time = expectedTime
+        self.package = Package(**package)
