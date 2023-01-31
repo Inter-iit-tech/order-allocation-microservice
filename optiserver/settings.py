@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "rest_framework",
     "solver",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -129,4 +130,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Django REST Framework
 # https://www.django-rest-framework.org/
 
-REST_FRAMEWORK = {}
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+
+# drf-spectacular
+# https://github.com/tfranzel/drf-spectacular/
+SPECTACULAR_SETTINGS = {
+    "TITLE": "OptiServer",
+    "DESCRIPTION": "Last-mile warehouse routing microservice",
+    "VERSION": "0.1.0",
+}

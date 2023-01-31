@@ -1,4 +1,5 @@
 Django~=4.1.5
 djangorestframework~=3.14.0
 drf-extra-fields~=3.4.1
+drf-spectacular==0.25.1
 GDAL~=3.6.2

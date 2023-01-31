@@ -1,3 +1,6 @@
-from django.shortcuts import render
+from solver.serializers import StartDaySerializer
+from rest_framework import generics
 
-# Create your views here.
+
+class SolutionCreate(generics.CreateAPIView):
+    serializer_class = StartDaySerializer

@@ -2,6 +2,13 @@ from rest_framework import serializers
 from datetime import timedelta
 from drf_extra_fields.geo_fields import PointField
 from solver.models import Consignment, Package, Vehicle, RiderMeta
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
+
+
+@extend_schema_field(OpenApiTypes.OBJECT)
+class SpectacularPointField(PointField):
+    pass
 
 
 class PackageSerializer(serializers.Serializer):
@@ -17,7 +24,7 @@ class PackageSerializer(serializers.Serializer):
 
 class ConsignmentSerializer(serializers.Serializer):
     consignmentType = serializers.ChoiceField(choices=["delivery", "pickup"])
-    point = PointField()
+    point = SpectacularPointField()
     expectedTime = serializers.DateTimeField()
     package = PackageSerializer()
     serviceTime = serializers.DurationField(default=timedelta())
@@ -61,3 +68,22 @@ class RiderMetaSerializer(serializers.Serializer):
         if "vehicle" in validated_data:
             instance.vehicle = Vehicle(**validated_data["vehicle"])
         instance.start_time = validated_data.get("startTime", instance.start_time)
+
+
+class StartDaySerializer(serializers.Serializer):
+    riders = serializers.ListField(child=RiderMetaSerializer(), min_length=1)
+    consignments = serializers.ListField(child=ConsignmentSerializer())
+    depotPoint = SpectacularPointField()
+
+    def create(self, validated_data):
+        return validated_data
+
+    def update(self, instance, validated_data):
+        instance["riders"] = validated_data.get("riders", instance["riders"])
+        instance["consignments"] = validated_data.get(
+            "consignments", instance["consignments"]
+        )
+        instance["depotLocation"] = validated_data.get(
+            "depotLocation", instance["depotLocation"]
+        )
+        return instance
