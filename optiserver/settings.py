@@ -137,8 +137,16 @@ REST_FRAMEWORK = {
 
 # drf-spectacular
 # https://github.com/tfranzel/drf-spectacular/
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "OptiServer",
     "DESCRIPTION": "Last-mile warehouse routing microservice",
     "VERSION": "0.1.0",
+}
+
+
+# OSRM
+
+OSRM_SETTINGS = {
+    "BASE_URL": "http://router.project-osrm.org",
 }
