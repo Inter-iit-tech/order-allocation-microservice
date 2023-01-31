@@ -1,6 +1,7 @@
 from rest_framework import serializers
+from datetime import timedelta
 from drf_extra_fields.geo_fields import PointField
-from solver.models import Consignment, Package
+from solver.models import Consignment, Package, Vehicle, RiderMeta
 
 
 class PackageSerializer(serializers.Serializer):
@@ -19,6 +20,7 @@ class ConsignmentSerializer(serializers.Serializer):
     point = PointField()
     expectedTime = serializers.DateTimeField()
     package = PackageSerializer()
+    serviceTime = serializers.DurationField(default=timedelta())
 
     def create(self, validated_data):
         return Consignment(**validated_data)
@@ -33,4 +35,29 @@ class ConsignmentSerializer(serializers.Serializer):
         )
         if "package" in validated_data:
             instance.package = Package(**validated_data["package"])
+        instance.service_time = validated_data.get("serviceTime", instance.service_time)
         return instance
+
+
+class VehicleSerializer(serializers.Serializer):
+    capacity = serializers.FloatField(min_value=0.0)
+
+    def create(self, validated_data):
+        return Vehicle(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.capacity = validated_data.get("capacity", instance.capacity)
+        return instance
+
+
+class RiderMetaSerializer(serializers.Serializer):
+    vehicle = VehicleSerializer()
+    startTime = serializers.DateTimeField()
+
+    def create(self, validated_data):
+        return RiderMeta(**validated_data)
+
+    def update(self, instance, validated_data):
+        if "vehicle" in validated_data:
+            instance.vehicle = Vehicle(**validated_data["vehicle"])
+        instance.start_time = validated_data.get("startTime", instance.start_time)
