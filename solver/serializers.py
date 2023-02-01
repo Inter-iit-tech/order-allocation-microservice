@@ -1,12 +1,20 @@
 from rest_framework import serializers
 from datetime import timedelta
 from drf_extra_fields.geo_fields import PointField
-from solver.models import Consignment, Package, Vehicle, RiderMeta, StartDay
+from solver.models import Consignment, Package, Vehicle, RiderMeta, TourStop, StartDay
 from drf_spectacular.utils import extend_schema_field
-from drf_spectacular.types import OpenApiTypes
 
 
-@extend_schema_field(OpenApiTypes.OBJECT)
+@extend_schema_field(
+    {
+        "type": "object",
+        "properties": {
+            "latitude": {"type": "number"},
+            "longitude": {"type": "number"},
+        },
+        "required": ["latitude", "longitude"],
+    }
+)
 class SpectacularPointField(PointField):
     pass
 
@@ -25,9 +33,9 @@ class PackageSerializer(serializers.Serializer):
 class ConsignmentSerializer(serializers.Serializer):
     consignmentType = serializers.ChoiceField(choices=["delivery", "pickup"])
     point = SpectacularPointField()
-    expectedTime = serializers.DateTimeField()
+    expectedTime = serializers.DurationField(min_value=timedelta())
     package = PackageSerializer()
-    serviceTime = serializers.DurationField(default=timedelta())
+    serviceTime = serializers.DurationField(default=timedelta(), min_value=timedelta())
 
     def create(self, validated_data):
         return Consignment(**validated_data)
@@ -59,7 +67,7 @@ class VehicleSerializer(serializers.Serializer):
 
 class RiderMetaSerializer(serializers.Serializer):
     vehicle = VehicleSerializer()
-    startTime = serializers.DateTimeField()
+    startTime = serializers.DurationField(min_value=timedelta())
 
     def create(self, validated_data):
         return RiderMeta(**validated_data)
@@ -70,12 +78,30 @@ class RiderMetaSerializer(serializers.Serializer):
         instance.startTime = validated_data.get("startTime", instance.startTime)
 
 
+class TourStopSerializer(serializers.Serializer):
+    packageIndex = serializers.IntegerField(min_value=0)
+    timing = serializers.DurationField(min_value=timedelta())
+
+    def create(self, validated_data):
+        return TourStop(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.packageIndex = validated_data.get(
+            "packageIndex", instance.packageIndex
+        )
+        instance.timing = validated_data.get("timing", instance.timing)
+
+
 class StartDaySerializer(serializers.Serializer):
     riders = serializers.ListField(child=RiderMetaSerializer(), min_length=1)
     consignments = serializers.ListField(child=ConsignmentSerializer())
     depotPoint = SpectacularPointField()
-    tours = serializers.ReadOnlyField()
-    timings = serializers.ReadOnlyField()
+    tours = serializers.ListField(
+        child=serializers.ListField(
+            child=serializers.ListField(child=TourStopSerializer())
+        ),
+        read_only=True,
+    )
 
     def create(self, validated_data):
         return StartDay(**validated_data)

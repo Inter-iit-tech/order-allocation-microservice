@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -144,6 +145,19 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
 }
 
+# OptiRider
+
+OPTIRIDER_SETTINGS = {
+    "CONSTANTS": {
+        "MISS_PENALTY": 2000000,
+        "WAIT_TIME_AT_WAREHOUSE": timedelta(seconds=600),
+        "LATE_DELIVERY_PENALTY_PER_SEC": timedelta(seconds=10),
+        "GLOBAL_START_TIME": timedelta(hours=9),  # '9 a.m.'
+        "GLOBAL_END_TIME": timedelta(hours=21),  # '9 p.m.'
+        # Handle that a trip time cannot exceed 5:30 hrs (19800s)
+        "MAX_TRIP_TIME": timedelta(hours=5, minutes=30),
+    },
+}
 
 # OSRM
 

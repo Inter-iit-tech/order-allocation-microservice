@@ -1,0 +1,20 @@
+from django.conf import settings
+
+MISS_PENALTY = settings.OPTIRIDER_SETTINGS["CONSTANTS"]["MISS_PENALTY"]
+WAIT_TIME_AT_WAREHOUSE = int(
+    settings.OPTIRIDER_SETTINGS["CONSTANTS"]["WAIT_TIME_AT_WAREHOUSE"].total_seconds()
+)
+LATE_DELIVERY_PENALTY_PER_SEC = int(
+    settings.OPTIRIDER_SETTINGS["CONSTANTS"][
+        "LATE_DELIVERY_PENALTY_PER_SEC"
+    ].total_seconds()
+)
+GLOBAL_START_TIME = int(
+    settings.OPTIRIDER_SETTINGS["CONSTANTS"]["GLOBAL_START_TIME"].total_seconds()
+)
+GLOBAL_END_TIME = int(
+    settings.OPTIRIDER_SETTINGS["CONSTANTS"]["GLOBAL_END_TIME"].total_seconds()
+)
+MAX_TRIP_TIME = int(
+    settings.OPTIRIDER_SETTINGS["CONSTANTS"]["MAX_TRIP_TIME"].total_seconds()
+)
