@@ -76,6 +76,9 @@ On top of all the Django server settings, the OptiRider parameters have been set
 in the [`settings.py`](optiserver/settings.py), under the dictionary
 `OPTIRIDER_SETTINGS` and `OSRM_SETTINGS`, accordingly.
 
+The server schema should be available on the endpoint `api/schema/swagger-ui/`
+or `api/schema/redoc/`.
+
 ## TODO 📝
 
 - Add a test module, which will verify that the path given by solver module is feasible.
