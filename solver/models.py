@@ -21,7 +21,8 @@ class Package:
 
 
 class Order:
-    def __init__(self, orderType, point, expectedTime, package, serviceTime):
+    def __init__(self, id, orderType, point, expectedTime, package, serviceTime):
+        self.id = id
         self.orderType = orderType
         self.point = Point(**point)
         self.expectedTime = expectedTime
@@ -34,23 +35,29 @@ class Vehicle:
         self.capacity = capacity
 
 
-class RiderMeta:
+class Depot:
+    def __init__(self, id, point):
+        self.id = id
+        self.point = Point(**point)
+
+
+class RiderStartMeta:
     def __init__(self, vehicle, startTime):
         self.vehicle = Vehicle(**vehicle)
         self.startTime = startTime
 
 
 class TourStop:
-    def __init__(self, locationIndex, timing):
-        self.locationIndex = locationIndex
+    def __init__(self, orderId, timing):
+        self.orderId = orderId
         self.timing = timing
 
 
 class StartDay:
-    def __init__(self, riders, orders, depotPoint):
-        self.riders = [RiderMeta(**rider) for rider in riders]
+    def __init__(self, riders, orders, depot):
+        self.riders = [RiderStartMeta(**rider) for rider in riders]
         self.orders = [Order(**order) for order in orders]
-        self.depotPoint = Point(**depotPoint)
+        self.depot = Depot(**depot)
         self.tours = None
         self._start_day()
 
@@ -79,7 +86,7 @@ class StartDay:
 
     def get_distance_matrix(self):
         points = [order.point for order in self.orders]
-        points.insert(0, self.depotPoint)
+        points.insert(0, self.depot.point)
         return fetch_distance_matrix(points)
 
     def get_capacities(self):
@@ -122,7 +129,9 @@ class StartDay:
                 for stop_index, tour_stop in enumerate(tour):
                     self.tours[rider_index][tour_index].append(
                         TourStop(
-                            tour_stop,
+                            self.depot.id
+                            if tour_stop == 0
+                            else self.orders[tour_stop - 1].id,
                             timedelta(
                                 seconds=(
                                     timings[rider_index][tour_index][stop_index]

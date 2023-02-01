@@ -5,7 +5,8 @@ from solver.models import (
     Order,
     Package,
     Vehicle,
-    RiderMeta,
+    Depot,
+    RiderStartMeta,
     TourStop,
     StartDay,
 )
@@ -37,6 +38,7 @@ class PackageSerializer(serializers.Serializer):
 
 
 class OrderSerializer(serializers.Serializer):
+    id = serializers.CharField(trim_whitespace=False)
     orderType = serializers.ChoiceField(choices=["delivery", "pickup"])
     point = PointSerializer()
     expectedTime = serializers.DurationField(min_value=timedelta())
@@ -47,6 +49,7 @@ class OrderSerializer(serializers.Serializer):
         return Order(**validated_data)
 
     def update(self, instance, validated_data):
+        instance.id = validated_data.get("id", instance.id)
         instance.orderType = validated_data.get("orderType", instance.orderType)
         instance.point = validated_data.get("point", instance.point)
         instance.expectedTime = validated_data.get(
@@ -74,7 +77,7 @@ class RiderMetaSerializer(serializers.Serializer):
     startTime = serializers.DurationField(min_value=timedelta())
 
     def create(self, validated_data):
-        return RiderMeta(**validated_data)
+        return RiderStartMeta(**validated_data)
 
     def update(self, instance, validated_data):
         if "vehicle" in validated_data:
@@ -82,24 +85,36 @@ class RiderMetaSerializer(serializers.Serializer):
         instance.startTime = validated_data.get("startTime", instance.startTime)
 
 
+class DepotSerializer(serializers.Serializer):
+    id = serializers.CharField(trim_whitespace=False)
+    point = PointSerializer()
+
+    def create(self, validated_data):
+        return Depot(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.id = validated_data.get("id", instance.id)
+        if "point" in validated_data:
+            instance.point = Point(**validated_data["point"])
+        return instance
+
+
 class TourStopSerializer(serializers.Serializer):
-    locationIndex = serializers.IntegerField(min_value=0)
+    orderId = serializers.CharField(trim_whitespace=False)
     timing = serializers.DurationField(min_value=timedelta())
 
     def create(self, validated_data):
         return TourStop(**validated_data)
 
     def update(self, instance, validated_data):
-        instance.locationIndex = validated_data.get(
-            "locationIndex", instance.locationIndex
-        )
+        instance.orderId = validated_data.get("orderId", instance.orderId)
         instance.timing = validated_data.get("timing", instance.timing)
 
 
 class StartDaySerializer(serializers.Serializer):
     riders = serializers.ListField(child=RiderMetaSerializer(), min_length=1)
     orders = serializers.ListField(child=OrderSerializer())
-    depotPoint = PointSerializer()
+    depot = DepotSerializer()
     tours = serializers.ListField(
         child=serializers.ListField(
             child=serializers.ListField(child=TourStopSerializer())
