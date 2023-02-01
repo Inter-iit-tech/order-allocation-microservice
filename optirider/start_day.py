@@ -94,8 +94,8 @@ def start_day(data, drop_penalty):
             # print("Solution ends")
             break
 
-    #print(tours)
-    #print(timings)
+    # print(tours)
+    # print(timings)
     return tours, timings, total_penalty
 
 
