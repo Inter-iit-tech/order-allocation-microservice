@@ -76,8 +76,13 @@ On top of all the Django server settings, the OptiRider parameters have been set
 in the [`settings.py`](optiserver/settings.py), under the dictionary
 `OPTIRIDER_SETTINGS` and `OSRM_SETTINGS`, accordingly.
 
-The server schema should be available on the endpoint `api/schema/swagger-ui/`
-or `api/schema/redoc/`.
+## API 🖧
+
+The server exposes a REST API interface, through which communication is
+performed. The server schema should be available on the endpoint
+`api/schema/swagger-ui/` or `api/schema/redoc/`. The OpenAPI schema YAML file is
+available on `api/schema/`. The YAML schema file can be uploaded &amp; checked
+in [Swagger Editor](https://editor.swagger.io) or [ReDoc Interactive Demo](https://redocly.github.io/redoc/).
 
 ## TODO 📝
 
