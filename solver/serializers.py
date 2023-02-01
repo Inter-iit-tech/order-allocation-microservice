@@ -1,22 +1,28 @@
 from rest_framework import serializers
 from datetime import timedelta
-from drf_extra_fields.geo_fields import PointField
-from solver.models import Consignment, Package, Vehicle, RiderMeta, TourStop, StartDay
-from drf_spectacular.utils import extend_schema_field
-
-
-@extend_schema_field(
-    {
-        "type": "object",
-        "properties": {
-            "latitude": {"type": "number"},
-            "longitude": {"type": "number"},
-        },
-        "required": ["latitude", "longitude"],
-    }
+from solver.models import (
+    Point,
+    Consignment,
+    Package,
+    Vehicle,
+    RiderMeta,
+    TourStop,
+    StartDay,
 )
-class SpectacularPointField(PointField):
-    pass
+
+
+class PointSerializer(serializers.Serializer):
+    longitude = serializers.FloatField(min_value=-180.0, max_value=180.0)
+    latitude = serializers.FloatField(min_value=-90.0, max_value=90.0)
+
+    def create(self, validated_data):
+        return Point(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.longitude = validated_data.get("longitude", instance.longitude)
+        instance.latitude = validated_data.get("latitude", instance.latitude)
+        instance.coords = instance.get_coords()
+        return instance
 
 
 class PackageSerializer(serializers.Serializer):
@@ -32,7 +38,7 @@ class PackageSerializer(serializers.Serializer):
 
 class ConsignmentSerializer(serializers.Serializer):
     consignmentType = serializers.ChoiceField(choices=["delivery", "pickup"])
-    point = SpectacularPointField()
+    point = PointSerializer()
     expectedTime = serializers.DurationField(min_value=timedelta())
     package = PackageSerializer()
     serviceTime = serializers.DurationField(default=timedelta(), min_value=timedelta())
@@ -95,7 +101,7 @@ class TourStopSerializer(serializers.Serializer):
 class StartDaySerializer(serializers.Serializer):
     riders = serializers.ListField(child=RiderMetaSerializer(), min_length=1)
     consignments = serializers.ListField(child=ConsignmentSerializer())
-    depotPoint = SpectacularPointField()
+    depotPoint = PointSerializer()
     tours = serializers.ListField(
         child=serializers.ListField(
             child=serializers.ListField(child=TourStopSerializer())

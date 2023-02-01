@@ -5,6 +5,16 @@ from optirider.setup import create_data_model
 from optirider.start_day import start_day
 
 
+class Point:
+    def __init__(self, longitude, latitude):
+        self.longitude = longitude
+        self.latitude = latitude
+        self.coords = self.get_coords()
+
+    def get_coords(self):
+        return self.longitude, self.latitude
+
+
 class Package:
     def __init__(self, volume):
         self.volume = volume
@@ -13,7 +23,7 @@ class Package:
 class Consignment:
     def __init__(self, consignmentType, point, expectedTime, package, serviceTime):
         self.consignmentType = consignmentType
-        self.point = point
+        self.point = Point(**point)
         self.expectedTime = expectedTime
         self.package = Package(**package)
         self.serviceTime = serviceTime
@@ -40,7 +50,7 @@ class StartDay:
     def __init__(self, riders, consignments, depotPoint):
         self.riders = [RiderMeta(**rider) for rider in riders]
         self.consignments = [Consignment(**consignment) for consignment in consignments]
-        self.depotPoint = depotPoint
+        self.depotPoint = Point(**depotPoint)
         self.tours = None
         self._start_day()
 
