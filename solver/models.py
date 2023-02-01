@@ -31,8 +31,8 @@ class RiderMeta:
 
 
 class TourStop:
-    def __init__(self, packageIndex, timing):
-        self.packageIndex = packageIndex
+    def __init__(self, locationIndex, timing):
+        self.locationIndex = locationIndex
         self.timing = timing
 
 
@@ -110,12 +110,17 @@ class StartDay:
             self.tours.append([])
             for tour_index, tour in enumerate(rider_tours):
                 self.tours[rider_index].append([])
+                prev_time = 0
                 for stop_index, tour_stop in enumerate(tour):
                     self.tours[rider_index][tour_index].append(
                         TourStop(
                             tour_stop,
                             timedelta(
-                                seconds=timings[rider_index][tour_index][stop_index]
+                                seconds=(
+                                    timings[rider_index][tour_index][stop_index]
+                                    - prev_time
+                                )
                             ),
                         )
                     )
+                    prev_time = timings[rider_index][tour_index][stop_index]

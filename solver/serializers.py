@@ -79,15 +79,15 @@ class RiderMetaSerializer(serializers.Serializer):
 
 
 class TourStopSerializer(serializers.Serializer):
-    packageIndex = serializers.IntegerField(min_value=0)
+    locationIndex = serializers.IntegerField(min_value=0)
     timing = serializers.DurationField(min_value=timedelta())
 
     def create(self, validated_data):
         return TourStop(**validated_data)
 
     def update(self, instance, validated_data):
-        instance.packageIndex = validated_data.get(
-            "packageIndex", instance.packageIndex
+        instance.locationIndex = validated_data.get(
+            "locationIndex", instance.locationIndex
         )
         instance.timing = validated_data.get("timing", instance.timing)
 
