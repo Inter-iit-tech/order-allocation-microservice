@@ -12,21 +12,35 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import environ
+
+env = environ.Env(
+    DEBUG=(bool, True),
+    SECRET_KEY=(
+        str,
+        "django-insecure-2kp2o(f+5*c-zuh744sd(ag3q#*)zc(edpyjzorf+3q!hz8-%r",
+    ),
+    ALLOWED_HOSTS=(list, []),
+    OSRM_BASE_URL=(str, "http://router.project-osrm.org"),
+)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Take environment variables from .env file
+environ.Env.read_env(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-*slflu37#2hp7#eoqbt%+g-k!$339-h-+6m6aoaiunlmyjye^#"
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env("DEBUG")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
 
 # Application definition
@@ -79,10 +93,7 @@ WSGI_APPLICATION = "optiserver.wsgi.application"
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": env.db(default="sqlite:////tmp/optiserver-db.sqlite3"),
 }
 
 
@@ -162,5 +173,5 @@ OPTIRIDER_SETTINGS = {
 # OSRM
 
 OSRM_SETTINGS = {
-    "BASE_URL": "http://router.project-osrm.org",
+    "BASE_URL": env("OSRM_BASE_URL"),
 }
