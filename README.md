@@ -84,6 +84,22 @@ performed. The server schema should be available on the endpoint
 available on `api/schema/`. The YAML schema file can be uploaded &amp; checked
 in [Swagger Editor](https://editor.swagger.io) or [ReDoc Interactive Demo](https://redocly.github.io/redoc/).
 
+### Docker 🐳
+
+Docker configurations have been uploaded, for development and production
+environment. The API will be exposed on port 8010 of the host. The details for
+the profiles are as follows:
+
+- In the development profile, the source code is live mounted into the image,
+  thus making changes to the code will automatically restart the server. To run
+  the development container, `cd` to [docker/development](docker/development)
+  and run `docker compose up -d`.
+
+- In the production profile, production settings are configured thru environment
+  variables. read the [docker/production/docker-compose.yml](docker/production/docker-compose.yml)
+  for options. To run the production container, `cd` to [docker/production](docker/production)
+  and run `docker compose up -d`.
+
 ## TODO 📝
 
 - Add a test module, which will verify that the path given by solver module is feasible.
