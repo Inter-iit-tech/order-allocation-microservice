@@ -1,4 +1,4 @@
-FROM python:3.10-bullseye AS builder
+FROM python:3.10-slim-bullseye AS builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends liblapack-dev libopenblas-dev gfortran \
