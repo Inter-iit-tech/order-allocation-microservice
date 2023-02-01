@@ -42,9 +42,11 @@ class Depot:
 
 
 class RiderStartMeta:
-    def __init__(self, vehicle, startTime):
+    def __init__(self, id, vehicle, startTime):
+        self.id = id
         self.vehicle = Vehicle(**vehicle)
         self.startTime = startTime
+        self.tours = []
 
 
 class TourStop:
@@ -58,7 +60,6 @@ class StartDay:
         self.riders = [RiderStartMeta(**rider) for rider in riders]
         self.orders = [Order(**order) for order in orders]
         self.depot = Depot(**depot)
-        self.tours = None
         self._start_day()
 
     def _start_day(self):
@@ -82,7 +83,9 @@ class StartDay:
 
         penalty = [int(np.sum(duration_matrix))] * len(duration_matrix)
         tours, timings, total_penalty = start_day(data, penalty)
-        self.zip_tours_and_timings(tours, timings)
+        zipped_tours = self.zip_tours_and_timings(tours, timings)
+        for rider_index, tours_info in enumerate(zipped_tours):
+            self.riders[rider_index].tours = tours_info
 
     def get_distance_matrix(self):
         points = [order.point for order in self.orders]
@@ -120,14 +123,14 @@ class StartDay:
         return delivery_times
 
     def zip_tours_and_timings(self, tours, timings):
-        self.tours = []
+        zipped_tours = []
         for rider_index, rider_tours in enumerate(tours):
-            self.tours.append([])
+            zipped_tours.append([])
             for tour_index, tour in enumerate(rider_tours):
-                self.tours[rider_index].append([])
+                zipped_tours[rider_index].append([])
                 prev_time = 0
                 for stop_index, tour_stop in enumerate(tour):
-                    self.tours[rider_index][tour_index].append(
+                    zipped_tours[rider_index][tour_index].append(
                         TourStop(
                             self.depot.id
                             if tour_stop == 0
@@ -141,3 +144,4 @@ class StartDay:
                         )
                     )
                     prev_time = timings[rider_index][tour_index][stop_index]
+        return zipped_tours

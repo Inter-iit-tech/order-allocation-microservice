@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers
 from datetime import timedelta
 from solver.models import (
@@ -10,6 +11,9 @@ from solver.models import (
     TourStop,
     StartDay,
 )
+
+
+DEFAULT_START_TIME = settings.OPTIRIDER_SETTINGS["CONSTANTS"]["GLOBAL_START_TIME"]
 
 
 class PointSerializer(serializers.Serializer):
@@ -72,17 +76,36 @@ class VehicleSerializer(serializers.Serializer):
         return instance
 
 
-class RiderMetaSerializer(serializers.Serializer):
+class TourStopSerializer(serializers.Serializer):
+    orderId = serializers.CharField(trim_whitespace=False)
+    timing = serializers.DurationField(min_value=timedelta())
+
+    def create(self, validated_data):
+        return TourStop(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.orderId = validated_data.get("orderId", instance.orderId)
+        instance.timing = validated_data.get("timing", instance.timing)
+        return instance
+
+
+class RiderStartMetaSerializer(serializers.Serializer):
+    id = serializers.CharField(trim_whitespace=False)
     vehicle = VehicleSerializer()
-    startTime = serializers.DurationField(min_value=timedelta())
+    startTime = serializers.DurationField(
+        min_value=timedelta(), default=DEFAULT_START_TIME
+    )
+    tours = serializers.ListField(child=TourStopSerializer(many=True), read_only=True)
 
     def create(self, validated_data):
         return RiderStartMeta(**validated_data)
 
     def update(self, instance, validated_data):
+        instance.id = validated_data.get("id", instance.id)
         if "vehicle" in validated_data:
             instance.vehicle = Vehicle(**validated_data["vehicle"])
         instance.startTime = validated_data.get("startTime", instance.startTime)
+        return instance
 
 
 class DepotSerializer(serializers.Serializer):
@@ -99,28 +122,10 @@ class DepotSerializer(serializers.Serializer):
         return instance
 
 
-class TourStopSerializer(serializers.Serializer):
-    orderId = serializers.CharField(trim_whitespace=False)
-    timing = serializers.DurationField(min_value=timedelta())
-
-    def create(self, validated_data):
-        return TourStop(**validated_data)
-
-    def update(self, instance, validated_data):
-        instance.orderId = validated_data.get("orderId", instance.orderId)
-        instance.timing = validated_data.get("timing", instance.timing)
-
-
 class StartDaySerializer(serializers.Serializer):
-    riders = serializers.ListField(child=RiderMetaSerializer(), min_length=1)
-    orders = serializers.ListField(child=OrderSerializer())
+    riders = RiderStartMetaSerializer(many=True)
+    orders = OrderSerializer(many=True)
     depot = DepotSerializer()
-    tours = serializers.ListField(
-        child=serializers.ListField(
-            child=serializers.ListField(child=TourStopSerializer())
-        ),
-        read_only=True,
-    )
 
     def create(self, validated_data):
         return StartDay(**validated_data)
