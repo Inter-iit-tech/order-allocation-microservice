@@ -6,5 +6,7 @@ services:
     image: optiserver:dev
     volumes:
       - ../..:/app
+    environment:
+      ALLOWED_HOSTS: "*"
     ports:
       - 8010:8000
