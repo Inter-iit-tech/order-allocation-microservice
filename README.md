@@ -70,13 +70,13 @@ Note: Before running in a production environment, certain settings need to be
 set properly (eg. setting `DEBUG = False`, configuring `ALLOWED_HOSTS` etc.).
 For all required production configuration, see the [Deployment Checklist](https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/).
 
-## Configuration Options ⚙️
+### Configuration Options ⚙️
 
 On top of all the Django server settings, the OptiRider parameters have been set
 in the [`settings.py`](optiserver/settings.py), under the dictionary
 `OPTIRIDER_SETTINGS` and `OSRM_SETTINGS`, accordingly.
 
-## API 🖧
+### API 🖧
 
 The server exposes a REST API interface, through which communication is
 performed. The server schema should be available on the endpoint
