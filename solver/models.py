@@ -20,9 +20,9 @@ class Package:
         self.volume = volume
 
 
-class Consignment:
-    def __init__(self, consignmentType, point, expectedTime, package, serviceTime):
-        self.consignmentType = consignmentType
+class Order:
+    def __init__(self, orderType, point, expectedTime, package, serviceTime):
+        self.orderType = orderType
         self.point = Point(**point)
         self.expectedTime = expectedTime
         self.package = Package(**package)
@@ -47,9 +47,9 @@ class TourStop:
 
 
 class StartDay:
-    def __init__(self, riders, consignments, depotPoint):
+    def __init__(self, riders, orders, depotPoint):
         self.riders = [RiderMeta(**rider) for rider in riders]
-        self.consignments = [Consignment(**consignment) for consignment in consignments]
+        self.orders = [Order(**order) for order in orders]
         self.depotPoint = Point(**depotPoint)
         self.tours = None
         self._start_day()
@@ -78,7 +78,7 @@ class StartDay:
         self.zip_tours_and_timings(tours, timings)
 
     def get_distance_matrix(self):
-        points = [consignment.point for consignment in self.consignments]
+        points = [order.point for order in self.orders]
         points.insert(0, self.depotPoint)
         return fetch_distance_matrix(points)
 
@@ -90,26 +90,24 @@ class StartDay:
 
     def get_service_times(self):
         service_times = [
-            int(np.rint(consignment.serviceTime.total_seconds()))
-            for consignment in self.consignments
+            int(np.rint(order.serviceTime.total_seconds())) for order in self.orders
         ]
         service_times.insert(0, 0)
         return service_times
 
     def get_package_volumes(self):
         package_volumes = [
-            consignment.package.volume
-            if consignment.consignmentType == "delivery"
-            else -consignment.package.volume
-            for consignment in self.consignments
+            order.package.volume
+            if order.orderType == "delivery"
+            else -order.package.volume
+            for order in self.orders
         ]
         package_volumes.insert(0, 0)
         return package_volumes
 
     def get_delivery_times(self):
         delivery_times = [
-            int(np.rint(consignment.expectedTime.total_seconds()))
-            for consignment in self.consignments
+            int(np.rint(order.expectedTime.total_seconds())) for order in self.orders
         ]
         delivery_times.insert(0, 0)
         return delivery_times

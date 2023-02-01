@@ -2,7 +2,7 @@ from rest_framework import serializers
 from datetime import timedelta
 from solver.models import (
     Point,
-    Consignment,
+    Order,
     Package,
     Vehicle,
     RiderMeta,
@@ -36,20 +36,18 @@ class PackageSerializer(serializers.Serializer):
         return Package(**validated_data)
 
 
-class ConsignmentSerializer(serializers.Serializer):
-    consignmentType = serializers.ChoiceField(choices=["delivery", "pickup"])
+class OrderSerializer(serializers.Serializer):
+    orderType = serializers.ChoiceField(choices=["delivery", "pickup"])
     point = PointSerializer()
     expectedTime = serializers.DurationField(min_value=timedelta())
     package = PackageSerializer()
     serviceTime = serializers.DurationField(default=timedelta(), min_value=timedelta())
 
     def create(self, validated_data):
-        return Consignment(**validated_data)
+        return Order(**validated_data)
 
     def update(self, instance, validated_data):
-        instance.consignmentType = validated_data.get(
-            "consignmentType", instance.consignmentType
-        )
+        instance.orderType = validated_data.get("orderType", instance.orderType)
         instance.point = validated_data.get("point", instance.point)
         instance.expectedTime = validated_data.get(
             "expectedTime", instance.expectedTime
@@ -100,7 +98,7 @@ class TourStopSerializer(serializers.Serializer):
 
 class StartDaySerializer(serializers.Serializer):
     riders = serializers.ListField(child=RiderMetaSerializer(), min_length=1)
-    consignments = serializers.ListField(child=ConsignmentSerializer())
+    orders = serializers.ListField(child=OrderSerializer())
     depotPoint = PointSerializer()
     tours = serializers.ListField(
         child=serializers.ListField(
