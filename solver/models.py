@@ -4,6 +4,7 @@ from optirider.services import fetch_distance_matrix
 from optirider.setup import create_data_model, create_updated_data
 from optirider.start_day import start_day
 from optirider.add_pickup import add_pickup
+from optirider.delete_pickup import delete_pickup
 
 
 class Point:
@@ -51,7 +52,7 @@ class RiderStartMeta:
 
 
 class RiderUpdateMeta:
-    def __init__(self, id, vehicle, tours, headingTo=None):
+    def __init__(self, id, vehicle, tours, headingTo):
         self.id = id
         self.vehicle = Vehicle(**vehicle)
         self.tours = [[TourStop(**stop) for stop in tour] for tour in tours]
@@ -131,6 +132,57 @@ class AddPickupMeta:
         )
 
         updated_tours, updated_timings, changed_rider = add_pickup(tours, timings, data)
+        if 0 <= changed_rider < len(self.riders):
+            self.riders[changed_rider].updatedCurrentTour = True
+
+        zipped_tours = zip_tours_and_timings(
+            updated_tours, updated_timings, self.depot, self.orders
+        )
+        for rider_index, tours_info in enumerate(zipped_tours):
+            self.riders[rider_index].tours = tours_info
+
+
+class DeletePickupMeta:
+    def __init__(self, riders, orders, depot, delOrderId):
+        self.riders = [RiderUpdateMeta(**rider) for rider in riders]
+        self.orders = [Order(**order) for order in orders]
+        self.depot = Depot(**depot)
+        self.delOrderId = delOrderId
+        self._del_pickup()
+
+    def _del_pickup(self):
+        depot_index = 0
+        pickup_index = -1
+        for order_index, order in enumerate(self.orders):
+            if order.id == self.delOrderId:
+                pickup_index = order_index + 1
+                break
+        if pickup_index == -1:
+            return
+
+        duration_matrix = get_distance_matrix(self.depot, self.orders)
+        capacities = get_capacities(self.riders)
+        service_times = get_service_times(self.orders)
+        package_volumes = get_package_volumes(self.orders)
+        delivery_times = get_delivery_times(self.orders)
+        tours, timings, tour_locations = unzip_tours_timings_locations(
+            self.riders, self.depot, self.orders
+        )
+
+        data = create_updated_data(
+            duration_matrix,
+            tour_locations,
+            depot_index,
+            pickup_index,
+            service_times,
+            package_volumes,
+            delivery_times,
+            capacities,
+        )
+
+        updated_tours, updated_timings, changed_rider = delete_pickup(
+            tours, timings, data
+        )
         if 0 <= changed_rider < len(self.riders):
             self.riders[changed_rider].updatedCurrentTour = True
 

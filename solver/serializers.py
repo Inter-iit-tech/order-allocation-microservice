@@ -12,6 +12,7 @@ from solver.models import (
     TourStop,
     StartDayMeta,
     AddPickupMeta,
+    DeletePickupMeta,
 )
 
 
@@ -114,7 +115,9 @@ class RiderUpdateMetaSerializer(serializers.Serializer):
     id = serializers.CharField(trim_whitespace=False)
     vehicle = VehicleSerializer()
     tours = serializers.ListField(child=TourStopSerializer(many=True))
-    headingTo = serializers.CharField(trim_whitespace=False, required=False)
+    headingTo = serializers.CharField(
+        trim_whitespace=False, allow_null=True, default=None
+    )
     updatedCurrentTour = serializers.BooleanField(read_only=True)
 
     def create(self, validated_data):
@@ -166,6 +169,19 @@ class AddPickupSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         return AddPickupMeta(**validated_data)
+
+    def update(self, instance, validated_data):
+        return instance
+
+
+class DeletePickupSerializer(serializers.Serializer):
+    riders = RiderUpdateMetaSerializer(many=True)
+    orders = OrderSerializer(many=True)
+    depot = DepotSerializer()
+    delOrderId = serializers.CharField(trim_whitespace=False)
+
+    def create(self, validated_data):
+        return DeletePickupMeta(**validated_data)
 
     def update(self, instance, validated_data):
         return instance

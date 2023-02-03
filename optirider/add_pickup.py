@@ -190,7 +190,7 @@ def add_pickup(tours, timings, data):
             ]
 
             temp_timings[vehicle_id][0] = [
-                tours[vehicle_id][0][i] for i in range(start_idx)
+                timings[vehicle_id][0][i] for i in range(start_idx)
             ]
 
             for loc_id, loc in enumerate(updated_tour):
