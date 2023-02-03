@@ -1,4 +1,8 @@
-from optirider.constants import WAIT_TIME_AT_WAREHOUSE, GLOBAL_START_TIME
+from optirider.constants import (
+    GLOBAL_START_TIME,
+    WAIT_TIME_AT_WAREHOUSE,
+    GLOBAL_END_TIME,
+)
 
 
 def get_solution(data, manager, routing, solution, drop_penalty):
@@ -49,7 +53,9 @@ def get_solution(data, manager, routing, solution, drop_penalty):
         time_taken += return_time[vehicle_id] - start_time
         answer[vehicle_id].append(curNode)
 
-    data["start_time"] = [val + WAIT_TIME_AT_WAREHOUSE for val in return_time]
+    data["start_time"] = [
+        min(val + WAIT_TIME_AT_WAREHOUSE, GLOBAL_END_TIME) for val in return_time
+    ]
     # dropped_nodes = "Dropped nodes:"
     for node in range(routing.Size()):
         if routing.IsStart(node) or routing.IsEnd(node):

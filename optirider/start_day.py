@@ -11,12 +11,15 @@ from optirider import solution as optisolver
 # import solution as optisolver
 
 
-def start_day(data, drop_penalty):
+def start_day(data, drop_penalty, time_to_limit=300):
     tours = [[] for _ in range(data["num_vehicles"])]
     timings = [[] for _ in range(data["num_vehicles"])]
     total_penalty = 0
+
+    points_to_map = [i for i in range(data["num_locations"])]
     if data["num_locations"] == 0:
         return tours, timings, total_penalty
+
     while True:
         # Create routing manager
         manager = pywrapcp.RoutingIndexManager(
@@ -66,6 +69,9 @@ def start_day(data, drop_penalty):
             routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
         )
 
+        # Added max_time of 300 sec (5 min) per search
+        search_parameters.time_limit.seconds = time_to_limit
+
         solution = routing.SolveWithParameters(search_parameters)
 
         if not solution:
@@ -76,20 +82,38 @@ def start_day(data, drop_penalty):
             data, manager, routing, solution, drop_penalty
         )
 
-        # Cannot directly add, visited point may be added to miss penalty multiple times.
-        total_penalty += solution.ObjectiveValue()
+        new_points_to_map = [i for i in range(data["num_locations"])]
+        points_to_take = [0]
 
-        # print(answer)
+        for location_idx, penalty in enumerate(drop_penalty):
+            if penalty > 0:
+                new_points_to_map[len(points_to_take)] = points_to_map[location_idx]
+                points_to_take.append(location_idx)
+
+        drop_penalty = [MISS_PENALTY] * len(points_to_take)
+        data = setup.extract_data(
+            data,
+            points_to_take,
+            [i for i in range(data["num_vehicles"])],
+            data["start_time"],
+        )
+
+        # Cannot directly add, visited point may be added to miss penalty multiple times.
+        # total_penalty += solution.ObjectiveValue()
+
         vehicle_id = 0
         can_continue = 0
         for tour in answer:
             if len(tour) > 2:
                 can_continue = 1
                 timings[vehicle_id].append(timing[vehicle_id])
-                # print(vehicle_id, tour)
-                tours[vehicle_id].append(tour)
+
+                actual_tour = [points_to_map[loc] for loc in tour]
+                tours[vehicle_id].append(actual_tour)
+
             vehicle_id += 1
 
+        points_to_map = new_points_to_map
         if max(drop_penalty) == 0 or can_continue == 0:
             # print("Solution ends")
             break

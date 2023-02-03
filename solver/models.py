@@ -1,8 +1,9 @@
 from datetime import timedelta
 import numpy as np
 from optirider.services import fetch_distance_matrix
-from optirider.setup import create_data_model
+from optirider.setup import create_data_model, create_updated_data
 from optirider.start_day import start_day
+from optirider.add_pickup import add_pickup
 
 
 class Point:
@@ -49,13 +50,23 @@ class RiderStartMeta:
         self.tours = []
 
 
+class RiderUpdateMeta:
+    def __init__(self, id, vehicle, startTime, tours, headingTo):
+        self.id = id
+        self.vehicle = Vehicle(**vehicle)
+        self.startTime = startTime
+        self.tours = [[TourStop(**stop) for stop in tour] for tour in tours]
+        self.headingTo = headingTo
+        self.updatedCurrentTour = False
+
+
 class TourStop:
     def __init__(self, orderId, timing):
         self.orderId = orderId
         self.timing = timing
 
 
-class StartDay:
+class StartDayMeta:
     def __init__(self, riders, orders, depot):
         self.riders = [RiderStartMeta(**rider) for rider in riders]
         self.orders = [Order(**order) for order in orders]
@@ -63,12 +74,13 @@ class StartDay:
         self._start_day()
 
     def _start_day(self):
-        duration_matrix = self.get_distance_matrix()
-        capacities = self.get_capacities()
-        start_times = self.get_start_times()
-        service_times = self.get_service_times()
-        package_volumes = self.get_package_volumes()
-        delivery_times = self.get_delivery_times()
+        depot_index = 0
+        duration_matrix = get_distance_matrix(self.depot, self.orders)
+        capacities = get_capacities(self.riders)
+        start_times = get_start_times(self.riders)
+        service_times = get_service_times(self.orders)
+        package_volumes = get_package_volumes(self.orders)
+        delivery_times = get_delivery_times(self.orders)
 
         data = create_data_model(
             duration_matrix,
@@ -78,70 +90,148 @@ class StartDay:
             package_volumes,
             delivery_times,
             num_vehicles=len(self.riders),
-            depot=0,
+            depot=depot_index,
         )
 
         penalty = [int(np.sum(duration_matrix))] * len(duration_matrix)
         tours, timings, total_penalty = start_day(data, penalty)
-        zipped_tours = self.zip_tours_and_timings(tours, timings)
+        zipped_tours = zip_tours_and_timings(tours, timings, self.depot, self.orders)
         for rider_index, tours_info in enumerate(zipped_tours):
             self.riders[rider_index].tours = tours_info
 
-    def get_distance_matrix(self):
-        points = [order.point for order in self.orders]
-        points.insert(0, self.depot.point)
-        return fetch_distance_matrix(points)
 
-    def get_capacities(self):
-        return [rider.vehicle.capacity for rider in self.riders]
+class AddPickupMeta:
+    def __init__(self, riders, orders, depot, newOrder):
+        self.riders = [RiderUpdateMeta(**rider) for rider in riders]
+        self.orders = [Order(**order) for order in orders]
+        self.orders.append(Order(**newOrder))
+        self.depot = Depot(**depot)
+        self._add_pickup()
 
-    def get_start_times(self):
-        return [int(np.rint(rider.startTime.total_seconds())) for rider in self.riders]
+    def _add_pickup(self):
+        depot_index = 0
+        pickup_index = len(self.orders) - 1
+        duration_matrix = get_distance_matrix(self.depot, self.orders)
+        capacities = get_capacities(self.riders)
+        service_times = get_service_times(self.orders)
+        package_volumes = get_package_volumes(self.orders)
+        delivery_times = get_delivery_times(self.orders)
+        tours, timings, tour_locations = unzip_tours_timings_locations(
+            self.riders, self.depot, self.orders
+        )
 
-    def get_service_times(self):
-        service_times = [
-            int(np.rint(order.serviceTime.total_seconds())) for order in self.orders
-        ]
-        service_times.insert(0, 0)
-        return service_times
+        data = create_updated_data(
+            duration_matrix,
+            tour_locations,
+            depot_index,
+            pickup_index,
+            service_times,
+            package_volumes,
+            delivery_times,
+            capacities,
+        )
 
-    def get_package_volumes(self):
-        package_volumes = [
-            order.package.volume
-            if order.orderType == "delivery"
-            else -order.package.volume
-            for order in self.orders
-        ]
-        package_volumes.insert(0, 0)
-        return package_volumes
+        updated_tours, updated_timings, changed_rider = add_pickup(tours, timings, data)
+        if 0 <= changed_rider < len(self.riders):
+            self.riders[changed_rider].updatedCurrentTour = True
 
-    def get_delivery_times(self):
-        delivery_times = [
-            int(np.rint(order.expectedTime.total_seconds())) for order in self.orders
-        ]
-        delivery_times.insert(0, 0)
-        return delivery_times
+        zipped_tours = zip_tours_and_timings(
+            updated_tours, updated_timings, self.depot, self.orders
+        )
+        for rider_index, tours_info in enumerate(zipped_tours):
+            self.riders[rider_index].tours = tours_info
 
-    def zip_tours_and_timings(self, tours, timings):
-        zipped_tours = []
-        for rider_index, rider_tours in enumerate(tours):
-            zipped_tours.append([])
-            for tour_index, tour in enumerate(rider_tours):
-                zipped_tours[rider_index].append([])
-                prev_time = 0
-                for stop_index, tour_stop in enumerate(tour):
-                    zipped_tours[rider_index][tour_index].append(
-                        TourStop(
-                            self.depot.id
-                            if tour_stop == 0
-                            else self.orders[tour_stop - 1].id,
-                            timedelta(
-                                seconds=(
-                                    timings[rider_index][tour_index][stop_index]
-                                    - prev_time
-                                )
-                            ),
-                        )
+
+def get_distance_matrix(depot, orders):
+    points = [order.point for order in orders]
+    points.insert(0, depot.point)
+    return fetch_distance_matrix(points)
+
+
+def get_capacities(riders):
+    return [rider.vehicle.capacity for rider in riders]
+
+
+def get_start_times(riders):
+    return [int(np.rint(rider.startTime.total_seconds())) for rider in riders]
+
+
+def get_service_times(orders):
+    service_times = [
+        int(np.rint(order.serviceTime.total_seconds())) for order in orders
+    ]
+    service_times.insert(0, 0)
+    return service_times
+
+
+def get_package_volumes(orders):
+    package_volumes = [
+        order.package.volume if order.orderType == "delivery" else -order.package.volume
+        for order in orders
+    ]
+    package_volumes.insert(0, 0)
+    return package_volumes
+
+
+def get_delivery_times(orders):
+    delivery_times = [
+        int(np.rint(order.expectedTime.total_seconds())) for order in orders
+    ]
+    delivery_times.insert(0, 0)
+    return delivery_times
+
+
+def zip_tours_and_timings(tours, timings, depot, orders):
+    zipped_tours = []
+    for rider_index, rider_tours in enumerate(tours):
+        zipped_tours.append([])
+        for tour_index, tour in enumerate(rider_tours):
+            zipped_tours[rider_index].append([])
+            prev_time = 0
+            for stop_index, tour_stop in enumerate(tour):
+                zipped_tours[rider_index][tour_index].append(
+                    TourStop(
+                        depot.id if tour_stop == 0 else orders[tour_stop - 1].id,
+                        timedelta(
+                            seconds=(
+                                timings[rider_index][tour_index][stop_index] - prev_time
+                            )
+                        ),
                     )
-                    prev_time = timings[rider_index][tour_index][stop_index]
-        return zipped_tours
+                )
+                prev_time = timings[rider_index][tour_index][stop_index]
+    return zipped_tours
+
+
+def unzip_tours_timings_locations(riders, depot, orders):
+    id_to_index = {
+        depot.id: 0,
+    }
+    for i, order in enumerate(orders):
+        id_to_index[order.id] = i + 1
+    tours = []
+    timings = []
+    tour_locations = []
+
+    for rider in riders:
+        tours.append([])
+        timings.append([])
+
+        if len(rider.tours) == 0:
+            tours[-1].append([])
+            timings[-1].append([])
+            tour_locations.append(-1)
+            continue
+        else:
+            tour_locations[-1] = id_to_index[rider.headingTo]
+
+        for tour in rider.tours:
+            tours[-1].append([])
+            timings[-1].append([])
+            stop_time = 0
+            for stop in tour:
+                stop_time += int(stop.timing.total_seconds())
+                tours[-1][-1].append(id_to_index[stop.id])
+                timings[-1][-1].append(stop_time)
+
+    return tours, timings, tour_locations

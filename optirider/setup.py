@@ -4,6 +4,7 @@ from optirider.constants import (
     LATE_DELIVERY_PENALTY_PER_SEC,
     MAX_TRIP_TIME,
     GLOBAL_END_TIME,
+    MISS_PENALTY,
 )
 
 
@@ -165,6 +166,7 @@ def add_start_time_constraint(routing, data, time_evaluator_index, time_dimensio
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
         x = int(data["start_time"][vehicle_id])  # Convert to int type
+        x = min(x, GLOBAL_END_TIME)
         # print(vehicle_id, x)
         time_dimension.CumulVar(index).SetRange(x, x)
 
@@ -215,7 +217,7 @@ def create_updated_data(
         "service_time": service_time,
         "package_volume": package_volume,
         "delivery_time": delivery_time,
-        "capacity": capacity,
+        "vehicle_capacity": capacity,
     }
     return data
 
@@ -339,7 +341,9 @@ def extract_data(data, points_to_take, vehicles, start_time):
         "num_locations": len(points_to_take),
         "num_vehicles": len(vehicles),
         "depot": data["depot"],
-        "vehicle_capacity": [data["capacity"][vehicle_id] for vehicle_id in vehicles],
+        "vehicle_capacity": [
+            data["vehicle_capacity"][vehicle_id] for vehicle_id in vehicles
+        ],
         "start_time": start_time,
         "delivery_time": [data["delivery_time"][point] for point in points_to_take],
         "package_volume": [data["package_volume"][point] for point in points_to_take],
@@ -347,3 +351,35 @@ def extract_data(data, points_to_take, vehicles, start_time):
     }
 
     return updated_data
+
+
+def late_penalty_add(late_time):
+    late_time = max(0, late_time)
+    return late_time * LATE_DELIVERY_PENALTY_PER_SEC
+
+
+def get_penalty(tours, timings, data):
+    penalty = 0
+    # All points except depot is counted as missed.
+    missed_points = data["num_locations"] - 1
+
+    for vehicle_id in range(data["num_vehicles"]):
+        for tour_id in range(len(tours[vehicle_id])):
+            prev_order = -1
+            missed_points -= (
+                len(tours[vehicle_id][tour_id]) - 2
+            )  # Start and end are at depot.
+
+            for order_id in range(len(tours[vehicle_id][tour_id])):
+                cur_order = tours[vehicle_id][tour_id][order_id]
+                if prev_order != -1:
+                    penalty += data["time_matrix"][prev_order][cur_order]
+                if cur_order > 0:
+                    penalty += late_penalty_add(
+                        timings[vehicle_id][tour_id][order_id]
+                        - data["delivery_time"][cur_order]
+                    )
+                prev_order = cur_order
+
+    penalty += missed_points * MISS_PENALTY
+    return penalty

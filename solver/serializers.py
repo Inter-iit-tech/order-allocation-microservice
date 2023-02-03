@@ -9,7 +9,7 @@ from solver.models import (
     Depot,
     RiderStartMeta,
     TourStop,
-    StartDay,
+    StartDayMeta,
 )
 
 
@@ -128,7 +128,7 @@ class StartDaySerializer(serializers.Serializer):
     depot = DepotSerializer()
 
     def create(self, validated_data):
-        return StartDay(**validated_data)
+        return StartDayMeta(**validated_data)
 
     def update(self, instance, validated_data):
         return instance
