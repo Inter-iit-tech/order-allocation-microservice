@@ -8,8 +8,10 @@ from solver.models import (
     Vehicle,
     Depot,
     RiderStartMeta,
+    RiderUpdateMeta,
     TourStop,
     StartDayMeta,
+    AddPickupMeta,
 )
 
 
@@ -108,6 +110,28 @@ class RiderStartMetaSerializer(serializers.Serializer):
         return instance
 
 
+class RiderUpdateMetaSerializer(serializers.Serializer):
+    id = serializers.CharField(trim_whitespace=False)
+    vehicle = VehicleSerializer()
+    tours = serializers.ListField(child=TourStopSerializer(many=True))
+    headingTo = serializers.CharField(trim_whitespace=False, required=False)
+    updatedCurrentTour = serializers.BooleanField(read_only=True)
+
+    def create(self, validated_data):
+        return RiderUpdateMeta(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.id = validated_data.get("id", instance.id)
+        if "vehicle" in validated_data:
+            instance.vehicle = Vehicle(**validated_data["vehicle"])
+        if "tours" in validated_data:
+            instance.tours = [
+                [TourStop(**stop) for stop in tour] for tour in validated_data["tours"]
+            ]
+        instance.headingTo = validated_data.get("headingTo", instance.headingTo)
+        return instance
+
+
 class DepotSerializer(serializers.Serializer):
     id = serializers.CharField(trim_whitespace=False)
     point = PointSerializer()
@@ -129,6 +153,19 @@ class StartDaySerializer(serializers.Serializer):
 
     def create(self, validated_data):
         return StartDayMeta(**validated_data)
+
+    def update(self, instance, validated_data):
+        return instance
+
+
+class AddPickupSerializer(serializers.Serializer):
+    riders = RiderUpdateMetaSerializer(many=True)
+    orders = OrderSerializer(many=True)
+    depot = DepotSerializer()
+    newOrder = OrderSerializer(write_only=True)
+
+    def create(self, validated_data):
+        return AddPickupMeta(**validated_data)
 
     def update(self, instance, validated_data):
         return instance

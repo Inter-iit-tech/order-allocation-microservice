@@ -1,6 +1,10 @@
-from solver.serializers import StartDaySerializer
+from solver.serializers import StartDaySerializer, AddPickupSerializer
 from rest_framework import generics
 
 
-class SolutionCreate(generics.CreateAPIView):
+class SolutionStartDay(generics.CreateAPIView):
     serializer_class = StartDaySerializer
+
+
+class SolutionAddPickup(generics.CreateAPIView):
+    serializer_class = AddPickupSerializer

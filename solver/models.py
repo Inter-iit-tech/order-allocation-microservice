@@ -51,10 +51,9 @@ class RiderStartMeta:
 
 
 class RiderUpdateMeta:
-    def __init__(self, id, vehicle, startTime, tours, headingTo):
+    def __init__(self, id, vehicle, tours, headingTo=None):
         self.id = id
         self.vehicle = Vehicle(**vehicle)
-        self.startTime = startTime
         self.tours = [[TourStop(**stop) for stop in tour] for tour in tours]
         self.headingTo = headingTo
         self.updatedCurrentTour = False
@@ -110,7 +109,7 @@ class AddPickupMeta:
 
     def _add_pickup(self):
         depot_index = 0
-        pickup_index = len(self.orders) - 1
+        pickup_index = len(self.orders)
         duration_matrix = get_distance_matrix(self.depot, self.orders)
         capacities = get_capacities(self.riders)
         service_times = get_service_times(self.orders)
@@ -185,6 +184,8 @@ def zip_tours_and_timings(tours, timings, depot, orders):
     zipped_tours = []
     for rider_index, rider_tours in enumerate(tours):
         zipped_tours.append([])
+        if len(rider_tours) == 1 and len(rider_tours[0]) == 0:
+            continue
         for tour_index, tour in enumerate(rider_tours):
             zipped_tours[rider_index].append([])
             prev_time = 0
@@ -216,14 +217,20 @@ def unzip_tours_timings_locations(riders, depot, orders):
     for rider in riders:
         tours.append([])
         timings.append([])
+        tour_locations.append(0)
 
         if len(rider.tours) == 0:
             tours[-1].append([])
             timings[-1].append([])
-            tour_locations.append(-1)
+            tour_locations[-1] = -1
             continue
-        else:
-            tour_locations[-1] = id_to_index[rider.headingTo]
+
+        if rider.headingTo is not None:
+            for stop_index in range(1, len(rider.tours[0])):
+                stop = rider.tours[0][stop_index]
+                if stop.orderId == rider.headingTo:
+                    tour_locations[-1] = stop_index
+                    break
 
         for tour in rider.tours:
             tours[-1].append([])
@@ -231,7 +238,7 @@ def unzip_tours_timings_locations(riders, depot, orders):
             stop_time = 0
             for stop in tour:
                 stop_time += int(stop.timing.total_seconds())
-                tours[-1][-1].append(id_to_index[stop.id])
+                tours[-1][-1].append(id_to_index[stop.orderId])
                 timings[-1][-1].append(stop_time)
 
     return tours, timings, tour_locations
