@@ -1,11 +1,6 @@
 from optirider import setup
 from optirider import start_day
-from optirider.constants import (
-    WAIT_TIME_AT_WAREHOUSE,
-    GLOBAL_END_TIME,
-    MISS_PENALTY,
-)
-
+from optirider.constants import WAIT_TIME_AT_WAREHOUSE, GLOBAL_END_TIME, MISS_PENALTY
 
 # Delete pickup function will take data, tours and timings as parameter
 # It will return tours, timings, changed_rider as result.
@@ -20,6 +15,9 @@ def delete_pickup(tours, timings, data):
     num_vehicles = data["num_vehicles"]
     changed_tour = -1
 
+    if "cur_time" not in data.keys():
+        data["cur_time"] = GLOBAL_END_TIME
+
     for vehicle_id in range(num_vehicles):
         time_saved = -1
         for idx in range(
@@ -29,25 +27,31 @@ def delete_pickup(tours, timings, data):
             if loc == pickup:
                 prev = tours[vehicle_id][0][idx - 1]
                 next = tours[vehicle_id][0][idx + 1]
+
                 time_saved = (
                     data["time_matrix"][prev][loc]
                     + data["time_matrix"][loc][next]
                     + data["service_time"][loc]
                     - data["time_matrix"][prev][next]
                 )
+
                 tours[vehicle_id][0].pop(idx)
                 timings[vehicle_id][0].pop(idx)
+
                 changed_tour = idx
                 break
 
         if changed_tour != -1:
             for idx in range(changed_tour, len(tours[vehicle_id][0])):
                 timings[vehicle_id][0][idx] -= time_saved
+
             for tour_id in range(1, len(tours[vehicle_id])):
                 for loc in range(len(tours[vehicle_id][tour_id])):
                     timings[vehicle_id][tour_id][loc] -= time_saved
+
             changed_tour = vehicle_id
             break
+
     if changed_tour != -1:
         return tours, timings, changed_tour
 
@@ -63,10 +67,10 @@ def delete_pickup(tours, timings, data):
         try:
             start_time[vehicle_id] = timings[vehicle_id][0][-1] + WAIT_TIME_AT_WAREHOUSE
         except IndexError:
-            start_time[vehicle_id] = GLOBAL_END_TIME
+            start_time[vehicle_id] = data["cur_time"]
 
     upcoming_data = setup.extract_data(
-        data, points, [i for i in range(num_vehicles)], start_time
+        data, points, [vehicle_id for vehicle_id in range(num_vehicles)], start_time
     )
     drop_penalty = [MISS_PENALTY] * upcoming_data["num_locations"]
 
@@ -80,8 +84,9 @@ def delete_pickup(tours, timings, data):
                 points[idx] for idx in upcoming_tour[vehicle_id][tour_id]
             ]
 
-        upcoming_tour.insert(0, tours[vehicle_id][0])
-        upcoming_timings.insert(0, timings[vehicle_id][0])
+        if len(tours[vehicle_id][0]) > 0:
+            upcoming_tour.insert(0, tours[vehicle_id][0])
+            upcoming_timings.insert(0, timings[vehicle_id][0])
 
     return upcoming_tour, upcoming_timings, changed_tour
 

@@ -1,9 +1,10 @@
 from datetime import timedelta
+from django.conf import settings
 import numpy as np
+from ortools.constraint_solver import routing_enums_pb2
 from optirider.services import fetch_distance_matrix
-from optirider.setup import create_data_model, create_updated_data
 from optirider.start_day import start_day
-from optirider.add_pickup import add_pickup
+from optirider.add_multiple_pickup import add_pickup
 from optirider.delete_pickup import delete_pickup
 
 
@@ -82,18 +83,32 @@ class StartDayMeta:
         package_volumes = get_package_volumes(self.orders)
         delivery_times = get_delivery_times(self.orders)
 
-        data = create_data_model(
-            duration_matrix,
-            capacities,
-            start_times,
-            service_times,
-            package_volumes,
-            delivery_times,
-            num_vehicles=len(self.riders),
-            depot=depot_index,
-        )
+        miss_penalty = settings.OPTIRIDER_SETTINGS["CONSTANTS"]["MISS_PENALTY"]
+        miss_penalty_reducer = settings.OPTIRIDER_SETTINGS["CONSTANTS"][
+            "MISS_PENALTY_REDUCER"
+        ]
+        penalty = [
+            int(miss_penalty)
+            // (miss_penalty_reducer ** int(order.expectedTime / timedelta(days=1)))
+            for order in self.orders
+        ]
+        penalty.insert(0, miss_penalty)
 
-        penalty = [int(np.sum(duration_matrix))] * len(duration_matrix)
+        data = {
+            "time_matrix": duration_matrix,
+            "num_locations": len(duration_matrix),
+            "num_vehicles": len(self.riders),
+            "depot": depot_index,
+            "package_volume": package_volumes,
+            "vehicle_capacity": capacities,
+            "start_time": start_times,
+            # Note: service_time at depot should be kept zero.
+            "service_time": service_times,
+            "delivery_time": delivery_times,
+            "penalty": penalty,
+            "local_search_metaheuristic": routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH,
+        }
+
         tours, timings, total_penalty = start_day(data, penalty)
         zipped_tours = zip_tours_and_timings(tours, timings, self.depot, self.orders)
         for rider_index, tours_info in enumerate(zipped_tours):
@@ -101,53 +116,72 @@ class StartDayMeta:
 
 
 class AddPickupMeta:
-    def __init__(self, riders, orders, depot, newOrder):
+    def __init__(self, riders, orders, depot, newOrders, currentTime):
         self.riders = [RiderUpdateMeta(**rider) for rider in riders]
-        self.orders = [Order(**order) for order in orders]
-        self.orders.append(Order(**newOrder))
+        self.newOrders = [Order(**order) for order in newOrders]
+        self.orders = [Order(**order) for order in orders] + self.newOrders
         self.depot = Depot(**depot)
+        self.currentTime = currentTime
         self._add_pickup()
 
     def _add_pickup(self):
         depot_index = 0
-        pickup_index = len(self.orders)
+        pickup_indices = list(
+            range(len(self.orders) - len(self.newOrders) + 1, len(self.orders) + 1)
+        )
         duration_matrix = get_distance_matrix(self.depot, self.orders)
         capacities = get_capacities(self.riders)
         service_times = get_service_times(self.orders)
         package_volumes = get_package_volumes(self.orders)
         delivery_times = get_delivery_times(self.orders)
+        cur_time = int(self.currentTime.total_seconds())
         tours, timings, tour_locations = unzip_tours_timings_locations(
             self.riders, self.depot, self.orders
         )
 
-        data = create_updated_data(
-            duration_matrix,
-            tour_locations,
-            depot_index,
-            pickup_index,
-            service_times,
-            package_volumes,
-            delivery_times,
-            capacities,
-        )
+        miss_penalty = settings.OPTIRIDER_SETTINGS["CONSTANTS"]["MISS_PENALTY"]
+        miss_penalty_reducer = settings.OPTIRIDER_SETTINGS["CONSTANTS"][
+            "MISS_PENALTY_REDUCER"
+        ]
+        penalty = [
+            int(miss_penalty)
+            // (miss_penalty_reducer ** int(order.expectedTime / timedelta(days=1)))
+            for order in self.orders
+        ]
+        penalty.insert(0, miss_penalty)
 
-        updated_tours, updated_timings, changed_rider = add_pickup(tours, timings, data)
-        if 0 <= changed_rider < len(self.riders):
-            self.riders[changed_rider].updatedCurrentTour = True
+        data = {
+            "time_matrix": duration_matrix,
+            "num_locations": len(duration_matrix),
+            "num_vehicles": len(capacities),
+            "depot": depot_index,
+            "tour_location": tour_locations,
+            "pickup_indices": pickup_indices,
+            "service_time": service_times,
+            "package_volume": package_volumes,
+            "delivery_time": delivery_times,
+            "vehicle_capacity": capacities,
+            "cur_time": cur_time,
+            "penalty": penalty,
+        }
+
+        updated_tours, updated_timings = add_pickup(tours, timings, data)
 
         zipped_tours = zip_tours_and_timings(
             updated_tours, updated_timings, self.depot, self.orders
         )
-        for rider_index, tours_info in enumerate(zipped_tours):
-            self.riders[rider_index].tours = tours_info
+        for rider, tours_info in zip(self.riders, zipped_tours):
+            rider.updatedCurrentTour = compare_current_tours(rider.tours, tours_info)
+            rider.tours = tours_info
 
 
 class DeletePickupMeta:
-    def __init__(self, riders, orders, depot, delOrderId):
+    def __init__(self, riders, orders, depot, delOrderId, currentTime):
         self.riders = [RiderUpdateMeta(**rider) for rider in riders]
         self.orders = [Order(**order) for order in orders]
         self.depot = Depot(**depot)
         self.delOrderId = delOrderId
+        self.currentTime = currentTime
         self._del_pickup()
 
     def _del_pickup(self):
@@ -165,20 +199,36 @@ class DeletePickupMeta:
         service_times = get_service_times(self.orders)
         package_volumes = get_package_volumes(self.orders)
         delivery_times = get_delivery_times(self.orders)
+        cur_time = int(self.currentTime.total_seconds())
         tours, timings, tour_locations = unzip_tours_timings_locations(
             self.riders, self.depot, self.orders
         )
 
-        data = create_updated_data(
-            duration_matrix,
-            tour_locations,
-            depot_index,
-            pickup_index,
-            service_times,
-            package_volumes,
-            delivery_times,
-            capacities,
-        )
+        miss_penalty = settings.OPTIRIDER_SETTINGS["CONSTANTS"]["MISS_PENALTY"]
+        miss_penalty_reducer = settings.OPTIRIDER_SETTINGS["CONSTANTS"][
+            "MISS_PENALTY_REDUCER"
+        ]
+        penalty = [
+            int(miss_penalty)
+            // (miss_penalty_reducer ** int(order.expectedTime / timedelta(days=1)))
+            for order in self.orders
+        ]
+        penalty.insert(0, miss_penalty)
+
+        data = {
+            "time_matrix": duration_matrix,
+            "num_locations": len(duration_matrix),
+            "num_vehicles": len(self.riders),
+            "depot": depot_index,
+            "tour_location": tour_locations,
+            "pickup_index": pickup_index,
+            "service_time": service_times,
+            "package_volume": package_volumes,
+            "delivery_time": delivery_times,
+            "vehicle_capacity": capacities,
+            "cur_time": cur_time,
+            "penalty": penalty,
+        }
 
         updated_tours, updated_timings, changed_rider = delete_pickup(
             tours, timings, data
@@ -294,3 +344,18 @@ def unzip_tours_timings_locations(riders, depot, orders):
                 timings[-1][-1].append(stop_time)
 
     return tours, timings, tour_locations
+
+
+def compare_current_tours(tours1, tours2):
+    if len(tours1) == 0 and len(tours2) == 0:
+        return False
+    if len(tours1) == 0 or len(tours2) == 0:
+        return True
+
+    if len(tours1[0]) != len(tours2[0]):
+        return True
+
+    for stop1, stop2 in zip(tours1[0], tours2[0]):
+        if stop1.orderId != stop2.orderId:
+            return True
+    return False

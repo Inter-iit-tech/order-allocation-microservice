@@ -1,24 +1,50 @@
-import numpy as np
+import math
 from functools import partial
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
-from optirider.constants import MISS_PENALTY
+from optirider.constants import (
+    MISS_PENALTY,
+    TIME_DIMENSION_NAME,
+    CAPACITY_DIMENSION_NAME,
+    DEFAULT_TIME_LIMIT,
+)
 
 from optirider import setup
 from optirider import solution as optisolver
 
-# import setup
-# import solution as optisolver
 
-
-def start_day(data, drop_penalty, time_to_limit=300):
+def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
     tours = [[] for _ in range(data["num_vehicles"])]
     timings = [[] for _ in range(data["num_vehicles"])]
-    total_penalty = 0
 
-    points_to_map = [i for i in range(data["num_locations"])]
+    total_penalty = 0
+    points_to_map = [loc for loc in range(data["num_locations"])]
+
     if data["num_locations"] == 0:
         return tours, timings, total_penalty
+
+    # Setting first solution heuristic.
+    search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+
+    solution_strategy = "PATH_CHEAPEST_ARC"
+    if "first_solution_strategy" in data.keys():
+        solution_strategy = data["first_solution_strategy"]
+
+    search_parameters.first_solution_strategy = getattr(
+        routing_enums_pb2.FirstSolutionStrategy, solution_strategy
+    )
+    if "local_search_metaheuristic" in data:
+        search_parameters.local_search_metaheuristic = data[
+            "local_search_metaheuristic"
+        ]
+
+    # Logic_0: Distrubute the time_to_limit among all iteration uniformly.
+    expected_loops = math.ceil(
+        sum(max(loads, 0) for loads in data["package_volume"])
+        / sum(capacity for capacity in data["vehicle_capacity"])
+    )
+    expected_loops = max(1, expected_loops)
+    search_parameters.time_limit.seconds = math.ceil(time_to_limit / (expected_loops))
 
     while True:
         # Create routing manager
@@ -29,9 +55,6 @@ def start_day(data, drop_penalty, time_to_limit=300):
         # Create route model
         routing = pywrapcp.RoutingModel(manager)
 
-        capacity_dimension_name = "Free Space"
-        time_dimension_name = "Time"
-
         # Create volume evaluator, which gives the change in volume in transit
         volume_evaluator_index = routing.RegisterUnaryTransitCallback(
             partial(setup.create_volume_evaluator(data), manager)
@@ -39,23 +62,24 @@ def start_day(data, drop_penalty, time_to_limit=300):
 
         # Adding the bag capacity constraint (hard constraint, should never be violated)
         setup.add_capacity_constraints(
-            routing, data, volume_evaluator_index, capacity_dimension_name
+            routing, data, volume_evaluator_index, CAPACITY_DIMENSION_NAME
         )
 
         # Adds time as the metric which model will try to minimize.
         transit_callback_index = routing.RegisterTransitCallback(
             partial(setup.gen_time_callback(data), manager)
         )
+
         # Set arc cost as time taken for travel.
         routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
         # Adds the constraint that different vechiles may start at different times (for further trips).
         setup.add_start_time_constraint(
-            routing, data, transit_callback_index, time_dimension_name
+            routing, data, transit_callback_index, TIME_DIMENSION_NAME
         )
 
         # Adds expected delivery_time constriant (soft constraint, late delivery may happen, but that attracts penalty)
-        setup.add_delivery_time_constraint(routing, manager, data, time_dimension_name)
+        setup.add_delivery_time_constraint(routing, manager, data, TIME_DIMENSION_NAME)
 
         # Allow to drop nodes (in worst cases) Make penalty very high (greater than penalty for all late delivery combined)
         for drop_point in range(1, data["num_locations"]):
@@ -63,26 +87,16 @@ def start_day(data, drop_penalty, time_to_limit=300):
                 [manager.NodeToIndex(drop_point)], drop_penalty[drop_point]
             )
 
-        # Setting first solution heuristic.
-        search_parameters = pywrapcp.DefaultRoutingSearchParameters()
-        search_parameters.first_solution_strategy = (
-            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
-        )
-
-        # Added max_time of 300 sec (5 min) per search
-        search_parameters.time_limit.seconds = time_to_limit
-
         solution = routing.SolveWithParameters(search_parameters)
 
         if not solution:
-            # print("Solution ends")
             break
 
         answer, timing, data, drop_penalty = optisolver.get_solution(
             data, manager, routing, solution, drop_penalty
         )
 
-        new_points_to_map = [i for i in range(data["num_locations"])]
+        new_points_to_map = [loc for loc in range(data["num_locations"])]
         points_to_take = [0]
 
         for location_idx, penalty in enumerate(drop_penalty):
@@ -94,7 +108,7 @@ def start_day(data, drop_penalty, time_to_limit=300):
         data = setup.extract_data(
             data,
             points_to_take,
-            [i for i in range(data["num_vehicles"])],
+            [vehicle_id for vehicle_id in range(data["num_vehicles"])],
             data["start_time"],
         )
 
@@ -115,11 +129,9 @@ def start_day(data, drop_penalty, time_to_limit=300):
 
         points_to_map = new_points_to_map
         if max(drop_penalty) == 0 or can_continue == 0:
-            # print("Solution ends")
             break
 
-    # print(tours)
-    # print(timings)
+    # total penalty will always be zero.
     return tours, timings, total_penalty
 
 

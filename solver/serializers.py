@@ -165,7 +165,8 @@ class AddPickupSerializer(serializers.Serializer):
     riders = RiderUpdateMetaSerializer(many=True)
     orders = OrderSerializer(many=True)
     depot = DepotSerializer()
-    newOrder = OrderSerializer(write_only=True)
+    newOrders = OrderSerializer(many=True, write_only=True)
+    currentTime = serializers.DurationField()
 
     def create(self, validated_data):
         return AddPickupMeta(**validated_data)
@@ -179,6 +180,7 @@ class DeletePickupSerializer(serializers.Serializer):
     orders = OrderSerializer(many=True)
     depot = DepotSerializer()
     delOrderId = serializers.CharField(trim_whitespace=False)
+    currentTime = serializers.DurationField()
 
     def create(self, validated_data):
         return DeletePickupMeta(**validated_data)

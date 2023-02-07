@@ -99,26 +99,16 @@ def generate_data(option):
 
 
 def gen_time_callback(data):
-    """Generates time callback from tour data and node.
-
-    :param data: Data, as arranged by :ref:`create_data_model`
-    :param ortools.constraint_solver.pywrapcp.RoutingIndexManager manager: Node manager
-    :param ortools.constraint_solver.pywrapcp.RoutingModel routing: OR Tools routing model
-    :returns: The index of callback in routing model
-    """
-
     def time_callback(manager, from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         return data["time_matrix"][from_node][to_node] + data["service_time"][from_node]
 
-    # transit_callback_index = routing.RegisterTransitCallback(time_callback)
-    # routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
     return time_callback
 
 
 def create_volume_evaluator(data):
-    """Creates callback to get package_volume at each locations."""
+
     volume = data["package_volume"]
 
     def volume_evaluator(manager, node):
@@ -144,9 +134,6 @@ def add_capacity_constraints(
     )
 
 
-# Handle service time where? (used gen_time_callback at ArcCostEvaluator)
-
-
 def add_start_time_constraint(routing, data, time_evaluator_index, time_dimension_name):
 
     trip_end_time = [
@@ -165,14 +152,16 @@ def add_start_time_constraint(routing, data, time_evaluator_index, time_dimensio
     # Add start time for each vehicle.
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
+
         x = int(data["start_time"][vehicle_id])  # Convert to int type
         x = min(x, GLOBAL_END_TIME)
-        # print(vehicle_id, x)
+
         time_dimension.CumulVar(index).SetRange(x, x)
 
 
 def add_delivery_time_constraint(routing, manager, data, time_dimension_name):
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
+
     for location_idx, delivery_time in enumerate(data["delivery_time"]):
         if location_idx == data["depot"]:
             continue
@@ -180,21 +169,6 @@ def add_delivery_time_constraint(routing, manager, data, time_dimension_name):
         time_dimension.SetCumulVarSoftUpperBound(
             index, int(delivery_time), LATE_DELIVERY_PENALTY_PER_SEC
         )
-
-
-def add_global_dimension(routing, callback_index, dim_name, slack, capacity, coeff):
-    """Adds a dimension in the routing model
-
-    :param ortools.constraint_solver.pywrapcp.RoutingModel routing: OR Tools routing model
-    :param int callback_index: callback index
-    :param str dim_name: name of the dimension
-    :param int slack: slack for the dimension
-    :param int capacity: maximum permitted value for each rider
-    :param int coeff: global cost coefficient
-    """
-    routing.AddDimension(callback_index, slack, capacity, True, dim_name)
-    dimension = routing.GetDimensionOrDie(dim_name)
-    dimension.SetGlobalSpanCostCoefficient(coeff)
 
 
 def create_updated_data(
@@ -301,7 +275,7 @@ def add_single_bag_capacity_constraint(
 
 
 def add_single_start_time_constraint(
-    routing, data, time_evaluator_index, start_time, cur_time, time_dimension_name
+    routing, time_evaluator_index, start_time, cur_time, time_dimension_name
 ):
     trip_end_time = min(GLOBAL_END_TIME, start_time + MAX_TRIP_TIME)
 
@@ -313,6 +287,7 @@ def add_single_start_time_constraint(
         time_dimension_name,
     )
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
+
     # Vehicle started at start_time from depot, but will start at cur_time from re-navigated route.
     cur_time = int(cur_time)
     time_dimension.CumulVar(routing.Start(0)).SetRange(cur_time, cur_time)
@@ -340,7 +315,7 @@ def extract_data(data, points_to_take, vehicles, start_time):
         ],
         "num_locations": len(points_to_take),
         "num_vehicles": len(vehicles),
-        "depot": data["depot"],
+        "depot": data["depot"],  # This doesn't make much sense.
         "vehicle_capacity": [
             data["vehicle_capacity"][vehicle_id] for vehicle_id in vehicles
         ],
@@ -348,6 +323,7 @@ def extract_data(data, points_to_take, vehicles, start_time):
         "delivery_time": [data["delivery_time"][point] for point in points_to_take],
         "package_volume": [data["package_volume"][point] for point in points_to_take],
         "service_time": [data["service_time"][point] for point in points_to_take],
+        "penalty": data["penalty"],
     }
 
     return updated_data
@@ -360,6 +336,7 @@ def late_penalty_add(late_time):
 
 def get_penalty(tours, timings, data):
     penalty = 0
+
     # All points except depot is counted as missed.
     missed_points = data["num_locations"] - 1
 

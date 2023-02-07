@@ -22,6 +22,8 @@ env = environ.Env(
     ),
     ALLOWED_HOSTS=(list, []),
     OSRM_BASE_URL=(str, "http://router.project-osrm.org"),
+    ROOT_LOG_LEVEL=(str, "WARNING"),
+    DJANGO_LOG_LEVEL=(str, "INFO"),
 )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -137,6 +139,37 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Django logging
+# https://docs.djangoproject.com/en/4.1/topics/logging/#logging
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "[{asctime}] {levelname} {module} {message}",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": env("ROOT_LOG_LEVEL"),
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": env("DJANGO_LOG_LEVEL"),
+            "propagate": False,
+        },
+    },
+}
 
 # Django REST Framework
 # https://www.django-rest-framework.org/
@@ -152,7 +185,7 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "OptiServer",
     "DESCRIPTION": "Last-mile warehouse routing microservice",
-    "VERSION": "0.1.0",
+    "VERSION": "0.2.0",
 }
 
 # OptiRider
@@ -160,17 +193,17 @@ SPECTACULAR_SETTINGS = {
 OPTIRIDER_SETTINGS = {
     "CONSTANTS": {
         "MISS_PENALTY": 2000000,
+        "MISS_PENALTY_REDUCER": 20,
         "WAIT_TIME_AT_WAREHOUSE": timedelta(seconds=600),
         "LATE_DELIVERY_PENALTY_PER_SEC": timedelta(seconds=10),
         "GLOBAL_START_TIME": timedelta(hours=9),  # '9 a.m.'
         "GLOBAL_END_TIME": timedelta(hours=21),  # '9 p.m.'
         # Handle that a trip time cannot exceed 5:30 hrs (19800s)
         "MAX_TRIP_TIME": timedelta(hours=5, minutes=30),
+        "DEFAULT_TIME_LIMIT": timedelta(seconds=30),
     },
-}
-
-# OSRM
-
-OSRM_SETTINGS = {
-    "BASE_URL": env("OSRM_BASE_URL"),
+    # OSRM
+    "OSRM": {
+        "BASE_URL": env("OSRM_BASE_URL"),
+    },
 }

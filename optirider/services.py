@@ -1,7 +1,10 @@
+import logging
 from django.conf import settings
 from requests import Session
 from urllib.parse import urljoin, quote
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class LiveServerSession(Session):
@@ -21,8 +24,11 @@ def table_request_path(points):
 
 
 def fetch_distance_matrix(points):
+    OSRM_BASE_URL = settings.OPTIRIDER_SETTINGS["OSRM"]["BASE_URL"]
     req_path = table_request_path(points)
-    with LiveServerSession(prefix_url=settings.OSRM_SETTINGS["BASE_URL"]) as s:
+    with LiveServerSession(prefix_url=OSRM_BASE_URL) as s:
+        logger.debug("Requesting OSRM table " + urljoin(s.prefix_url, req_path))
         r = s.get(req_path)
+        logger.debug("Request to OSRM table done")
         adj_matrix = np.rint(np.array(r.json()["durations"])).astype(int).tolist()
     return adj_matrix
