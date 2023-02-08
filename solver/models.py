@@ -68,10 +68,11 @@ class TourStop:
 
 
 class StartDayMeta:
-    def __init__(self, riders, orders, depot):
+    def __init__(self, riders, orders, depot, runtime):
         self.riders = [RiderStartMeta(**rider) for rider in riders]
         self.orders = [Order(**order) for order in orders]
         self.depot = Depot(**depot)
+        self.runtime = runtime
         self._start_day()
 
     def _start_day(self):
@@ -109,19 +110,22 @@ class StartDayMeta:
             "local_search_metaheuristic": routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH,
         }
 
-        tours, timings, total_penalty = start_day(data, penalty)
+        tours, timings, total_penalty = start_day(
+            data, penalty, time_to_limit=int(self.runtime.total_seconds())
+        )
         zipped_tours = zip_tours_and_timings(tours, timings, self.depot, self.orders)
         for rider_index, tours_info in enumerate(zipped_tours):
             self.riders[rider_index].tours = tours_info
 
 
 class AddPickupMeta:
-    def __init__(self, riders, orders, depot, newOrders, currentTime):
+    def __init__(self, riders, orders, depot, newOrders, currentTime, runtime):
         self.riders = [RiderUpdateMeta(**rider) for rider in riders]
         self.newOrders = [Order(**order) for order in newOrders]
         self.orders = [Order(**order) for order in orders] + self.newOrders
         self.depot = Depot(**depot)
         self.currentTime = currentTime
+        self.runtime = runtime
         self._add_pickup()
 
     def _add_pickup(self):
@@ -176,12 +180,13 @@ class AddPickupMeta:
 
 
 class DeletePickupMeta:
-    def __init__(self, riders, orders, depot, delOrderId, currentTime):
+    def __init__(self, riders, orders, depot, delOrderId, currentTime, runtime):
         self.riders = [RiderUpdateMeta(**rider) for rider in riders]
         self.orders = [Order(**order) for order in orders]
         self.depot = Depot(**depot)
         self.delOrderId = delOrderId
         self.currentTime = currentTime
+        self.runtime = runtime
         self._del_pickup()
 
     def _del_pickup(self):

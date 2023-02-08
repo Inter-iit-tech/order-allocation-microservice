@@ -153,6 +153,9 @@ class StartDaySerializer(serializers.Serializer):
     riders = RiderStartMetaSerializer(many=True)
     orders = OrderSerializer(many=True)
     depot = DepotSerializer()
+    runtime = serializers.DurationField(
+        default=settings.OPTIRIDER_SETTINGS["CONSTANTS"]["DEFAULT_TIME_LIMIT"]
+    )
 
     def create(self, validated_data):
         return StartDayMeta(**validated_data)
@@ -167,6 +170,9 @@ class AddPickupSerializer(serializers.Serializer):
     depot = DepotSerializer()
     newOrders = OrderSerializer(many=True, write_only=True)
     currentTime = serializers.DurationField()
+    runtime = serializers.DurationField(
+        default=settings.OPTIRIDER_SETTINGS["CONSTANTS"]["DEFAULT_TIME_LIMIT"]
+    )
 
     def create(self, validated_data):
         return AddPickupMeta(**validated_data)
@@ -181,6 +187,9 @@ class DeletePickupSerializer(serializers.Serializer):
     depot = DepotSerializer()
     delOrderId = serializers.CharField(trim_whitespace=False)
     currentTime = serializers.DurationField()
+    runtime = serializers.DurationField(
+        default=settings.OPTIRIDER_SETTINGS["CONSTANTS"]["DEFAULT_TIME_LIMIT"]
+    )
 
     def create(self, validated_data):
         return DeletePickupMeta(**validated_data)
