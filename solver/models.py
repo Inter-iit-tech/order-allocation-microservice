@@ -289,10 +289,12 @@ def get_delivery_times(orders):
 
 def zip_tours_and_timings(tours, timings, depot, orders):
     zipped_tours = []
+    # print(tours)
     for rider_index, rider_tours in enumerate(tours):
         zipped_tours.append([])
         if len(rider_tours) == 1 and len(rider_tours[0]) == 0:
             continue
+        # print(rider_index, rider_tours)
         for tour_index, tour in enumerate(rider_tours):
             zipped_tours[rider_index].append([])
             prev_time = 0

@@ -17,6 +17,9 @@ def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
     tours = [[] for _ in range(data["num_vehicles"])]
     timings = [[] for _ in range(data["num_vehicles"])]
 
+    # time_to_limit = 300
+    print("HELLO")
+
     total_penalty = 0
     points_to_map = [loc for loc in range(data["num_locations"])]
 

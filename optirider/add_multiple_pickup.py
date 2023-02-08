@@ -24,8 +24,11 @@ from optirider.constants import (
 # The data matrix contains only those points starting from next delivery location for all vehicles or can contain all points ?
 
 
+single_vehicle_vrp_default_runtime = 10
+upcoming_tour_runtime = 10
+
 def solve_constrained_vrp(
-    tour_data, initial_tour, start_time, cur_time, cur_free_space, time_limit=10
+    tour_data, initial_tour, start_time, cur_time, cur_free_space, time_limit = single_vehicle_vrp_default_runtime
 ):
     # Create routing manager (with different start and end location)
     manager = pywrapcp.RoutingIndexManager(
@@ -77,6 +80,23 @@ def solve_constrained_vrp(
             routing.AddDisjunction(
                 [manager.NodeToIndex(drop_point)], tour_data["penalty"][drop_point]
             )
+
+    # Add constraint that the rider cannot visit more than tour_data['route_length'] locations
+    def counter_callback(from_index):
+        """Returns 1 for any locations except end."""
+        # Convert from routing variable Index to user NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        return 1 if (from_node != tour_data['end'][0]) else 0
+
+    counter_callback_index = routing.RegisterUnaryTransitCallback(counter_callback)
+
+    routing.AddDimension(
+    counter_callback_index, 
+    0, # No slack
+    tour_data['route_length'], # Cannot exceed this
+    True,   # Start from zero
+    'Counter'
+    )
 
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
@@ -136,6 +156,8 @@ def solve_constrained_vrp(
 
 def add_pickup(tours, timings, data):
 
+    print("Add PICKUP CALLED")
+
     if "cur_time" not in data.keys():
         data["cur_time"] = GLOBAL_END_TIME
 
@@ -159,7 +181,7 @@ def add_pickup(tours, timings, data):
                     further_points.append(order_no)
 
         for current_order in tours[vehicles][0]:
-            if current_order > 0:
+            if current_order != data["depot"]:
                 data["penalty"][current_order] = cur_day_delivery_penalty
 
     for pickup_points in missed_points:
@@ -168,7 +190,7 @@ def add_pickup(tours, timings, data):
     begin_next_journey_at = []
     for vehicle_id in range(num_vehicles):
         if data["tour_location"][vehicle_id] == -1:
-            begin_next_journey_at.append(GLOBAL_END_TIME)
+            begin_next_journey_at.append(data['cur_time'])
         else:
             begin_next_journey_at.append(
                 timings[vehicle_id][0][-1] + WAIT_TIME_AT_WAREHOUSE
@@ -180,7 +202,7 @@ def add_pickup(tours, timings, data):
     current_tour = [[tours[vehicle][0]] for vehicle in range(num_vehicles)]
     current_timings = [[timings[vehicle][0]] for vehicle in range(num_vehicles)]
 
-    for vehicle_id in vehicle_list_random:
+    for cnt_vehicle, vehicle_id in enumerate(vehicle_list_random):
         if len(missed_points) == 0:
             break
 
@@ -193,8 +215,8 @@ def add_pickup(tours, timings, data):
         initial_tour = []
 
         if start_idx == -1:
-            # Handle this.
             start_idx = 0
+            cur_time = data['cur_time']
         else:
             for i in range(start_idx, len(tours[vehicle_id][0])):
                 if tours[vehicle_id][0][i] > 0:
@@ -205,14 +227,14 @@ def add_pickup(tours, timings, data):
                         data["package_volume"][tours[vehicle_id][0][i]], 0
                     )
             start_time = timings[vehicle_id][0][0]
+            cur_time = timings[vehicle_id][0][start_idx]
+
         # This is the index of depot.
         tour_idx.append(0)
         end_idx = len(tour_idx) - 1
 
         for points in missed_points:
             tour_idx.append(points)
-
-        cur_time = timings[vehicle_id][0][start_idx]
 
         # Run vrp for points in tour_idx starting at tour_idx[0] and ending at tour_idx[len(tour_idx)-2]
         # Satisfying bag capacity constraint and that tour time may not exceed 4-5 hours or beyond 9 p.m. whichever lower.
@@ -225,7 +247,12 @@ def add_pickup(tours, timings, data):
             tour_data["start"] = [0]
         tour_data["end"] = [end_idx]
 
-        # updated_tours[vehicle_id]
+        rem_vehicles = num_vehicles - cnt_vehicle
+        rem_pickups = len(missed_points)
+
+        expected_pickup_per_rider = math.ceil(rem_vehicles/rem_pickups)
+        tour_data['route_length'] = len(initial_tour) + 1 + expected_pickup_per_rider + 2
+
         (updated_tour, tour_timings, missed_point, start_time,) = solve_constrained_vrp(
             tour_data, initial_tour, start_time, cur_time, cur_free_space
         )
@@ -239,13 +266,9 @@ def add_pickup(tours, timings, data):
             timings[vehicle_id][0][i] for i in range(start_idx)
         ]
 
-        visited = [0] * len(tour_idx)
-
         for loc_id, loc in enumerate(updated_tour):
             current_tour[vehicle_id][0].append(tour_idx[loc])
             current_timings[vehicle_id][0].append(tour_timings[loc_id])
-
-            visited[loc] = 1
 
         missed_points = []
         for point in missed_point:
@@ -258,7 +281,6 @@ def add_pickup(tours, timings, data):
     # Make penalty of pickup equal to cur_day_delivery penalty for upcoming penalty.
     for points in missed_points:
         further_points.append(points)
-        # Currently not defined, but I will define it.
         data["penalty"][points] = cur_day_delivery_penalty
 
     further_points.insert(0, 0)
@@ -273,7 +295,7 @@ def add_pickup(tours, timings, data):
     # Update the time for which algo will run and see if guided local search is required or not.
     # Integrate miss penalty into data only.
     upcoming_tour, upcoming_time, upcoming_penalty = optisolver.start_day(
-        upcoming_tour_data, [MISS_PENALTY] * upcoming_tour_data["num_locations"], 5
+        upcoming_tour_data, [MISS_PENALTY] * upcoming_tour_data["num_locations"], upcoming_tour_runtime
     )
 
     total_tour = [element for element in current_tour]

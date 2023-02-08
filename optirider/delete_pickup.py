@@ -85,8 +85,8 @@ def delete_pickup(tours, timings, data):
             ]
 
         if len(tours[vehicle_id][0]) > 0:
-            upcoming_tour.insert(0, tours[vehicle_id][0])
-            upcoming_timings.insert(0, timings[vehicle_id][0])
+            upcoming_tour[vehicle_id].insert(0, tours[vehicle_id][0])
+            upcoming_timings[vehicle_id].insert(0, timings[vehicle_id][0])
 
     return upcoming_tour, upcoming_timings, changed_tour
 

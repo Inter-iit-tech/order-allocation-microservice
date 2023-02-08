@@ -8,6 +8,6 @@ services:
       DEBUG: 0
       SECRET_KEY: "<put-a-really-secret-key-here>"
       ALLOWED_HOSTS: "*"
-      OSRM_BASE_URL: "http://router.project-osrm.org"
+      OSRM_BASE_URL: "http://host.docker.internalc:5000"
     ports:
       - 8010:8000

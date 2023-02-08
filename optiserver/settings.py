@@ -200,7 +200,7 @@ OPTIRIDER_SETTINGS = {
         "GLOBAL_END_TIME": timedelta(hours=21),  # '9 p.m.'
         # Handle that a trip time cannot exceed 5:30 hrs (19800s)
         "MAX_TRIP_TIME": timedelta(hours=5, minutes=30),
-        "DEFAULT_TIME_LIMIT": timedelta(minutes=1),
+        "DEFAULT_TIME_LIMIT": timedelta(minutes=5),
     },
     # OSRM
     "OSRM": {

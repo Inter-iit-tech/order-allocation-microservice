@@ -8,5 +8,6 @@ services:
       - ../..:/app
     environment:
       ALLOWED_HOSTS: "*"
+      OSRM_BASE_URL: "http://host.docker.internal:5000"
     ports:
       - 8010:8000
