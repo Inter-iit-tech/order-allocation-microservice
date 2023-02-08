@@ -20,6 +20,8 @@ def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
     total_penalty = 0
     points_to_map = [loc for loc in range(data["num_locations"])]
 
+    drop_penalty = [penalty for penalty in data["penalty"]]
+
     if data["num_locations"] == 0:
         return tours, timings, total_penalty
 
@@ -99,12 +101,14 @@ def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
         new_points_to_map = [loc for loc in range(data["num_locations"])]
         points_to_take = [0]
 
+        new_drop_penalty = []
         for location_idx, penalty in enumerate(drop_penalty):
             if penalty > 0:
                 new_points_to_map[len(points_to_take)] = points_to_map[location_idx]
                 points_to_take.append(location_idx)
+                new_drop_penalty.append(penalty)
 
-        drop_penalty = [MISS_PENALTY] * len(points_to_take)
+        drop_penalty = [new_miss_penalty for new_miss_penalty in new_drop_penalty]
         data = setup.extract_data(
             data,
             points_to_take,
@@ -128,7 +132,7 @@ def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
             vehicle_id += 1
 
         points_to_map = new_points_to_map
-        if max(drop_penalty) == 0 or can_continue == 0:
+        if len(drop_penalty) == 0 or max(drop_penalty) == 0 or can_continue == 0:
             break
 
     # total penalty will always be zero.

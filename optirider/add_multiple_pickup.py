@@ -1,3 +1,4 @@
+import math
 import random
 from functools import partial
 from ortools.constraint_solver import routing_enums_pb2
@@ -129,11 +130,6 @@ def solve_constrained_vrp(
     return updated_tour, tour_timings, missed_point, start_time
 
 
-cur_day_delivery_penalty = 20000000
-
-pickup_init_penalty = 20000000
-# Set penalty of pickup indices as this.
-
 # Bug: Initial tour may be empty. (Handled)
 # Run time issues: This function may take much time to run.
 
@@ -145,14 +141,13 @@ def add_pickup(tours, timings, data):
 
     num_vehicles = len(tours)
 
-    updated_tours = tours
-    upcoming_timings = timings
-
     missed_points = data["pickup_indices"]
 
-    # Miss penalty is added corresponding to the newly added pickup point.
-    cur_min_penalty = setup.get_penalty(tours, timings, data) + MISS_PENALTY * len(
-        missed_points
+    cur_day_delivery_penalty = data["penalty"][missed_points[0]]
+
+    # Set penalty of pickup indices as this.
+    pickup_init_penalty = math.floor(
+        (cur_day_delivery_penalty - 1) / len(missed_points)
     )
 
     # All delivery points except depot
@@ -162,6 +157,13 @@ def add_pickup(tours, timings, data):
             for order_no in tours[vehicles][tour_no]:
                 if order_no != data["depot"]:
                     further_points.append(order_no)
+
+        for current_order in tours[vehicles][0]:
+            if current_order > 0:
+                data["penalty"][current_order] = cur_day_delivery_penalty
+
+    for pickup_points in missed_points:
+        data["penalty"][pickup_points] = pickup_init_penalty
 
     begin_next_journey_at = []
     for vehicle_id in range(num_vehicles):

@@ -323,7 +323,7 @@ def extract_data(data, points_to_take, vehicles, start_time):
         "delivery_time": [data["delivery_time"][point] for point in points_to_take],
         "package_volume": [data["package_volume"][point] for point in points_to_take],
         "service_time": [data["service_time"][point] for point in points_to_take],
-        "penalty": data["penalty"],
+        "penalty": [data["penalty"][point] for point in points_to_take],
     }
 
     return updated_data
