@@ -14,7 +14,7 @@ def get_solution(data, manager, routing, solution, drop_penalty):
 
     return_time = [
         GLOBAL_START_TIME
-    ] * num_vehicles  # Time at which each vehicle will reach at wawrehouse after the trip.
+    ] * num_vehicles  # Time at which each vehicle will reach at warehouse after the trip.
     new_drop_penalty = [miss_penalty for miss_penalty in drop_penalty]
 
     time_dimension = routing.GetDimensionOrDie(TIME_DIMENSION_NAME)

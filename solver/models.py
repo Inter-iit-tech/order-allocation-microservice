@@ -2,6 +2,7 @@ from datetime import timedelta
 from django.conf import settings
 import numpy as np
 from ortools.constraint_solver import routing_enums_pb2
+from optirider.constants import MIN_MISS_PENALTY
 from optirider.services import fetch_distance_matrix
 from optirider.start_day import start_day
 from optirider.add_multiple_pickup import add_pickup
@@ -89,8 +90,8 @@ class StartDayMeta:
             "MISS_PENALTY_REDUCER"
         ]
         penalty = [
-            int(miss_penalty)
-            // (miss_penalty_reducer ** int(order.expectedTime / timedelta(days=1)))
+            max(MIN_MISS_PENALTY, int(miss_penalty)
+            // (miss_penalty_reducer ** int(order.expectedTime / timedelta(days=1))))
             for order in self.orders
         ]
         penalty.insert(0, miss_penalty)
@@ -148,8 +149,8 @@ class AddPickupMeta:
             "MISS_PENALTY_REDUCER"
         ]
         penalty = [
-            int(miss_penalty)
-            // (miss_penalty_reducer ** int(order.expectedTime / timedelta(days=1)))
+            max(MIN_MISS_PENALTY, int(miss_penalty)
+            // (miss_penalty_reducer ** int(order.expectedTime / timedelta(days=1))))
             for order in self.orders
         ]
         penalty.insert(0, miss_penalty)
@@ -214,8 +215,8 @@ class DeletePickupMeta:
             "MISS_PENALTY_REDUCER"
         ]
         penalty = [
-            int(miss_penalty)
-            // (miss_penalty_reducer ** int(order.expectedTime / timedelta(days=1)))
+            max(MIN_MISS_PENALTY, int(miss_penalty)
+            // (miss_penalty_reducer ** int(order.expectedTime / timedelta(days=1))))
             for order in self.orders
         ]
         penalty.insert(0, miss_penalty)
@@ -322,7 +323,7 @@ def unzip_tours_timings_locations(riders, depot, orders):
     tours = []
     timings = []
     tour_locations = []
-
+    
     for rider in riders:
         tours.append([])
         timings.append([])

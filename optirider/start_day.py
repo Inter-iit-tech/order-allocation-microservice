@@ -17,9 +17,6 @@ def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
     tours = [[] for _ in range(data["num_vehicles"])]
     timings = [[] for _ in range(data["num_vehicles"])]
 
-    # time_to_limit = 300
-    print("HELLO")
-
     total_penalty = 0
     points_to_map = [loc for loc in range(data["num_locations"])]
 
@@ -43,7 +40,7 @@ def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
             "local_search_metaheuristic"
         ]
 
-    # Logic_0: Distrubute the time_to_limit among all iteration uniformly.
+    # Logic_0: Distribute the time_to_limit among all iteration uniformly.
     expected_loops = math.ceil(
         sum(max(loads, 0) for loads in data["package_volume"])
         / sum(capacity for capacity in data["vehicle_capacity"])
@@ -95,6 +92,7 @@ def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
         solution = routing.SolveWithParameters(search_parameters)
 
         if not solution:
+
             break
 
         answer, timing, data, drop_penalty = optisolver.get_solution(
@@ -104,7 +102,7 @@ def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
         new_points_to_map = [loc for loc in range(data["num_locations"])]
         points_to_take = [0]
 
-        new_drop_penalty = []
+        new_drop_penalty = [0]
         for location_idx, penalty in enumerate(drop_penalty):
             if penalty > 0:
                 new_points_to_map[len(points_to_take)] = points_to_map[location_idx]
@@ -112,6 +110,7 @@ def start_day(data, drop_penalty, time_to_limit=DEFAULT_TIME_LIMIT):
                 new_drop_penalty.append(penalty)
 
         drop_penalty = [new_miss_penalty for new_miss_penalty in new_drop_penalty]
+
         data = setup.extract_data(
             data,
             points_to_take,

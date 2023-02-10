@@ -194,7 +194,7 @@ OPTIRIDER_SETTINGS = {
     "CONSTANTS": {
         "MISS_PENALTY": 2000000,
         "MISS_PENALTY_REDUCER": 20,
-        "WAIT_TIME_AT_WAREHOUSE": timedelta(seconds=600),
+        "WAIT_TIME_AT_WAREHOUSE": timedelta(seconds=0),
         "LATE_DELIVERY_PENALTY_PER_SEC": 10,
         "GLOBAL_START_TIME": timedelta(hours=9),  # '9 a.m.'
         "GLOBAL_END_TIME": timedelta(hours=21),  # '9 p.m.'
