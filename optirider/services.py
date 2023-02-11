@@ -19,16 +19,23 @@ class LiveServerSession(Session):
 
 def table_request_path(points):
     coord_string = ";".join([f"{pnt.coords[0]},{pnt.coords[1]}" for pnt in points])
-    req_path = urljoin("/table/v1/driving/", quote(coord_string, safe=""))
+    # req_path = urljoin("/table/v1/driving/", quote(coord_string, safe=""))
+    req_path = "/table/v1/driving/"
     return req_path
 
 
 def fetch_distance_matrix(points):
     OSRM_BASE_URL = settings.OPTIRIDER_SETTINGS["OSRM"]["BASE_URL"]
     req_path = table_request_path(points)
+    req_body = ";".join([f"{pnt.coords[0]},{pnt.coords[1]}" for pnt in points])
     with LiveServerSession(prefix_url=OSRM_BASE_URL) as s:
         logger.debug("Requesting OSRM table " + urljoin(s.prefix_url, req_path))
-        r = s.get(req_path)
+        r = s.post(
+            req_path,
+            json={
+                "coordStr": req_body,
+            },
+        )
         logger.debug("Request to OSRM table done")
         adj_matrix = np.rint(np.array(r.json()["durations"])).astype(int).tolist()
     return adj_matrix
